@@ -28,6 +28,27 @@ npx expo start
 
 Then scan the QR code with the **Expo Go** app on your phone. You can also press `w` to open it in the browser, or `a` / `i` for an emulator or simulator.
 
+## Installing on Android
+
+Every push that changes `bending-companion/` makes GitHub Actions build an installable APK (workflow: `.github/workflows/android-apk.yml`). No Expo account is needed.
+
+1. On your phone, open the repo's **Releases** page on GitHub and choose the newest **Bending Companion (Android build N)**.
+2. Download `bending-companion.apk` and open it.
+3. If Android asks, allow your browser to install unknown apps, then tap **Install**.
+
+To build without pushing a change, open **Actions → Build Android APK → Run workflow**.
+
+These builds are signed with a shared debug key. That's fine for you and your friends, but the Play Store needs a real signing key (for example, through `npx eas-cli build -p android --profile production`).
+
+### Alternative: EAS Build
+
+With a free Expo account you can also build in Expo's cloud:
+
+```bash
+npx eas-cli login
+npx eas-cli build -p android --profile preview   # gives an APK download link
+```
+
 Other commands:
 
 ```bash
