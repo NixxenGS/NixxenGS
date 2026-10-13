@@ -49,6 +49,22 @@ npx expo start
 
 Scan the QR code with **Expo Go** on your phone. You can also press `w` for the browser, or `a` / `i` for an emulator.
 
+## Installing on Android
+
+Every push that changes `origin-story/` makes GitHub Actions build an installable APK (workflow: `.github/workflows/origin-story-apk.yml`). No Expo account is needed.
+
+1. On your phone, open the repo's **Releases** page on GitHub and choose the newest **Origin Story (Android build N)**.
+2. Download `origin-story.apk` and open it.
+3. If Android asks, allow your browser to install unknown apps, then tap **Install**.
+
+To build without pushing a change, open **Actions → Build Origin Story APK → Run workflow**.
+
+To update, install a newer APK over the old one. Your heroes stay on the phone. These builds are signed with a shared debug key. That's fine for you and your friends, but the Play Store needs a real signing key (for example, through `npx eas-cli build -p android --profile production`).
+
+With a free Expo account you can also build in Expo's cloud: `npx eas-cli login`, then `npx eas-cli build -p android --profile preview`.
+
+## Other commands
+
 ```bash
 npm run typecheck                 # TypeScript check
 npx expo export --platform web    # static web build in dist/
