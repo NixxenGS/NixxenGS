@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirror the page background so there is no flash before it paints. -->
+    <color name="bg">#F3F0F8</color>
+    <color name="icon_bg">#1A1428</color>
+    <color name="icon_panel">#2C2145</color>
+    <color name="icon_violet">#A98BEA</color>
+    <color name="icon_gold">#E7B95A</color>
+    <color name="icon_ink">#F2ECFF</color>
+</resources>
