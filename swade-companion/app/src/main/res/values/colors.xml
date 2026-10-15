@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirror the page background (parchment) so there is no flash before it paints. -->
+    <color name="bg">#EFE3C6</color>
+    <color name="icon_bg">#1D1712</color>
+    <color name="icon_paper">#EFE3C6</color>
+    <color name="icon_brass">#B48A3C</color>
+    <color name="icon_brass_lo">#6D5021</color>
+    <color name="icon_blood">#8F2B17</color>
+    <color name="icon_ink">#2B1E14</color>
+</resources>

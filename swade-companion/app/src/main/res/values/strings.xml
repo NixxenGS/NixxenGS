@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Savage Worlds</string>
+    <string name="saved">Saved</string>
+    <string name="save_failed">Couldn\'t save the file</string>
+    <string name="no_file_picker">No file picker available on this device</string>
+    <string name="print_unavailable">Printing isn\'t available on this device</string>
+</resources>
