@@ -280,7 +280,7 @@
     active = [];
   }
 
-  /* dice: [{kind:'d20', value: 14, palette:'twilight', dim:false}] → Promise resolved when settled */
+  /* dice: [{kind:'d20', value: 14, palette:'twilight', dim:false}] \u2192 Promise resolved when settled */
   function throwDice(dice, opts) {
     opts = opts || {};
     cancelAnimationFrame(raf);

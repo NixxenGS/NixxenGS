@@ -1,6 +1,6 @@
 # OSR Companion for Android
 
-A mobile character app for **OSR 5th Edition** (5.5e homebrew), built around the
+A mobile character app for **OSR 5th Edition**, D&D 5.5e (2024) rules with homebrew, built around the
 OSR Character Record Sheet and the Class Compendium 1.5. It opens on
 **Zaphyre Blight** (Tiefling 1 / Cleric 2, Twilight Domain) exactly as written on the
 PDF sheet, and checks every choice against the rules.
@@ -46,22 +46,33 @@ PDF sheet, and checks every choice against the rules.
   - Inventory with weights and coins.
   - Journal and JSON export/import.
 
-## Zaphyre's validation results
+## Rules basis
 
-The sheet audit matches **61 of 63** numbers. The two differences, and the other
-findings:
+The app uses **D&D 5.5e (2024)** rules, with the OSR homebrew from the record sheet
+and the Class Compendium on top. Race-classes, paired saves, Vitality and Acumen,
+and encumbrance at STR × 5/10/15 are homebrew. 2024 rules cover backgrounds
+(ability increases, an Origin feat, skills, a tool and equipment), languages,
+spell versions, exhaustion (−2 per level to d20 tests and −5 ft speed per level),
+long rests (all hit dice back), Heroic Inspiration, Weapon Mastery, and unarmed
+strike/grapple/shove. Where the compendium is explicit, it wins over 2024 (for
+example, Cleric preparation is WIS + Cleric level).
+
+## Zaphyre's validation results
 
 | | Finding |
 |---|---|
-| ⚠️ | **HP 25** is 1 above the fixed average of 24 (10 + 7 + 7). It's legal only if the hit dice were rolled. |
-| ⚠️ | **Encumbered:** 48 lb carried, but STR 7 allows 35 lb before encumbrance. Speed drops to 20 ft (the sheet says 30). |
-| ⚠️ | **Diplomat's pack** weighs 39 lb, not 36, so the total is 51 lb. |
-| ⚠️ | **Starting gear:** the Tiefling kit's **dagger** and **lute (or other instrument)** aren't on the sheet. |
-| ℹ️ | Shield proficiency (from Cleric) is unused. A shield would make AC 13. |
-| ℹ️ | The rapier lists the *Vex* mastery, but neither class grants Weapon Mastery. |
-| ℹ️ | Acolyte grants 2 languages and one is still unchosen. "Dragon" is normally called *Draconic*. |
-| ℹ️ | XP is blank. Level 3 starts at 900 XP. |
-| ✅ | Everything else checks out: Tiefling first (race-class), Cleric WIS 13 prerequisite, INT/CHA saves, all 15 paired saves, the 4 Tiefling skills + 2 Acolyte skills, 3 instruments, cantrips and spells known/prepared, Twilight domain spells, both spell DCs and attack bonuses, slots, Bardic Inspiration ×4 and Channel Divinity ×1. |
+| ⚠️ | **Origin feat missing:** the 2024 Acolyte grants **Magic Initiate (Cleric)**: 2 cleric cantrips + 1 level 1 cleric spell, with INT, WIS or CHA. The sheet says *Feats: None*. Pick them in Spellbook → Manage. |
+| ⚠️ | **Calligrapher's Supplies** (Acolyte tool) missing. |
+| ⚠️ | **Acolyte equipment** missing: option A (Calligrapher's Supplies, prayer book, Holy Symbol, parchment, robe, 8 GP) or B (50 GP). |
+| ⚠️ | **Tiefling gear:** dagger and lute (or other instrument) missing. |
+| ⚠️ | **HP 25** is 1 over the fixed average of 24. Legal only if rolled. |
+| ⚠️ | **Encumbered:** 48 lb vs 35 lb (STR 7 × 5), so speed is 20 ft. Also, the Diplomat's pack weighs 39 lb, not 36. |
+| ⚠️ | **2014 spell stats on the sheet:** Sleep (now 60 ft, concentration, a save) and Spare the Dying (now a bonus action at 15 ft). |
+| ℹ️ | Scores must have been **rolled**: STR 7 is below the point-buy/standard-array minimum of 8. A fit: Acolyte +2 INT +1 WIS gives base 7/10/15/15/14/16. |
+| ℹ️ | *Shelter of the Faithful* is the 2014 Acolyte feature, replaced by the Origin feat. |
+| ℹ️ | Languages: 2024 gives Common + 2 standard. Infernal is a rare language, so it needs the race-class (or DM) to grant it. "Dragon" is normally called *Draconic*. |
+| ℹ️ | The rapier's Vex mastery needs Weapon Mastery, which neither class grants. Shield proficiency is unused (a shield would make AC 13). XP is blank. |
+| ✅ | Passes: class order, Cleric WIS 13, INT/CHA saves, all 15 paired saves, skills, instruments, cantrips and spells known/prepared, domain spells, DCs and attack bonuses, slots, Bardic Inspiration and Channel Divinity. |
 
 ## Build
 

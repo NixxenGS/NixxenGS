@@ -24,7 +24,7 @@
     { c: 'MP', n: 'Mortal Peril', a: ['dex', 'cha'], d: 'Ambush, falls, bad footing' },
     { c: 'HC', n: 'Hexcraft', a: ['dex', 'wis'], d: 'Binding spells, snares' },
     { c: 'Cr', n: 'Creeping Doom', a: ['con', 'int'], d: 'Disease, rot, blight' },
-    { c: 'NW', n: 'Nature’s Wrath', a: ['con', 'wis'], d: 'Heat, cold, storms' },
+    { c: 'NW', n: 'Nature\u2019s Wrath', a: ['con', 'wis'], d: 'Heat, cold, storms' },
     { c: 'SR', n: 'Soul Rending', a: ['con', 'cha'], d: 'Necrotic, possession' },
     { c: 'Ph', n: 'Phantasmagoria', a: ['int', 'wis'], d: 'Illusions, glamours' },
     { c: 'Bw', n: 'Bewitchment', a: ['int', 'cha'], d: 'Charms, domination' },
@@ -59,7 +59,7 @@
   var CLASSES = {
     tiefling: {
       n: 'Tiefling', race: true, hd: 8, tag: 'Tfl', ability: 'cha', list: 'warlock',
-      tagline: 'Warlock/Bard Hybrid — Infernal Charmer',
+      tagline: 'Warlock/Bard Hybrid \u2014 Infernal Charmer',
       saves: ['int', 'cha'],
       asi: { int: 1, cha: 2 },
       armor: ['light'], shields: false,
@@ -67,7 +67,7 @@
       tools: 'Three musical instruments of your choice', toolCount: 3,
       skillCount: 4,
       skillList: ['arcana', 'deception', 'history', 'insight', 'intimidation', 'investigation', 'performance', 'persuasion', 'religion', 'sleight', 'stealth'],
-      equipment: ['(a) a rapier, (b) a longsword, or (c) any simple weapon', '(a) a diplomat’s pack or (b) an entertainer’s pack', '(a) a lute or (b) any other musical instrument', 'Leather armor and a dagger'],
+      equipment: ['(a) a rapier, (b) a longsword, or (c) any simple weapon', '(a) a diplomat\u2019s pack or (b) an entertainer\u2019s pack', '(a) a lute or (b) any other musical instrument', 'Leather armor and a dagger'],
       // lvl: [cantrips, spells known, pact slots, slot level, invocations, inspiration die]
       table: [null,
         [2, 2, 1, 1, 0, 6], [2, 3, 2, 1, 1, 6], [2, 4, 2, 2, 1, 6], [3, 5, 2, 2, 1, 8], [3, 6, 2, 3, 1, 8],
@@ -114,13 +114,19 @@
     Paladin: 'STR & CHA 13', Ranger: 'DEX & WIS 13', Rogue: 'DEX 13', Sorcerer: 'CHA 13', Warlock: 'CHA 13', Wizard: 'INT 13'
   };
 
+  // 2024 (5.5e) backgrounds: ability increases, an Origin feat, two skills, a tool and equipment.
   var BACKGROUNDS = {
     Acolyte: {
-      skills: ['insight', 'religion'], languages: 2,
-      feature: 'Shelter of the Faithful',
-      text: 'You and your companions can receive free healing and care at temples of your faith, and its faithful will support you.'
+      abilities: ['int', 'wis', 'cha'],
+      feat: 'Magic Initiate (Cleric)', featList: 'cleric',
+      skills: ['insight', 'religion'],
+      tool: 'Calligrapher’s Supplies',
+      equipA: ['Calligrapher’s Supplies', 'Book (prayers)', 'Holy Symbol', 'Parchment (10 sheets)', 'Robe', '8 GP'],
+      equipB: '50 GP',
+      legacyFeature: 'Shelter of the Faithful'
     }
   };
+  var MAGIC_INITIATE = 'You learn two cantrips and one level 1 spell from the Cleric list, using INT, WIS or CHA (chosen when you take the feat). The level 1 spell is always prepared; you can cast it once without a slot per long rest, and with any spell slots you have. You can swap it when you gain a level.';
 
   var ARMOR = {
     none: { n: 'No armor', base: 10, dex: 99, type: 'none', w: 0 },
@@ -185,50 +191,50 @@
     S('eldritch-blast', 'Eldritch Blast', 0, ['warlock'], '1A', '120 ft', 'Inst.', { atk: true, dmg: '1d10', dt: 'force', beams: true }, 'A beam of crackling energy. Ranged spell attack, 1d10 force. More beams at character levels 5, 11 and 17.'),
     S('thunderclap', 'Thunderclap', 0, ['warlock'], '1A', 'Self (5 ft)', 'Inst.', { save: 'OF', dmg: '1d6', dt: 'thunder', sc: true }, 'A burst of thunder around you. Each creature within 5 ft saves or takes 1d6 thunder. The sound carries 100 ft.'),
     S('mending', 'Mending', 0, ['cleric'], '1 min', 'Touch', 'Inst.', {}, 'Repairs a single break or tear in an object, up to 1 ft in any dimension.'),
-    S('spare-the-dying', 'Spare the Dying', 0, ['cleric'], '1A', 'Touch', 'Inst.', {}, 'A living creature at 0 HP becomes stable.'),
+    S('spare-the-dying', 'Spare the Dying', 0, ['cleric'], '1 BA', '15 ft', 'Inst.', {}, 'A creature with 0 HP becomes stable. Range doubles at character levels 5, 11 and 17.'),
     S('toll-the-dead', 'Toll the Dead', 0, ['cleric', 'warlock'], '1A', '60 ft', 'Inst.', { save: 'SR', dmg: '1d8', dmgAlt: '1d12', dt: 'necrotic', sc: true }, 'A dolorous bell tolls. The target saves or takes 1d8 necrotic, or 1d12 if it is missing any hit points.'),
-    S('guidance', 'Guidance', 0, ['cleric'], '1A', 'Touch', 'Conc. 1 min', { conc: true, dmg: '1d4', heal: false, bonusDie: true }, 'A willing creature adds 1d4 to one ability check of its choice before the spell ends.'),
+    S('guidance', 'Guidance', 0, ['cleric'], '1A', 'Touch', 'Conc. 1 min', { conc: true, dmg: '1d4', bonusDie: true }, 'Choose a skill: a willing creature adds 1d4 to ability checks using that skill until the spell ends.'),
     S('sacred-flame', 'Sacred Flame', 0, ['cleric'], '1A', '60 ft', 'Inst.', { save: 'MP', dmg: '1d8', dt: 'radiant', sc: true }, 'Flame-like radiance descends on a creature. It saves or takes 1d8 radiant; cover gives no benefit.'),
     S('light', 'Light', 0, ['cleric'], '1A', 'Touch', '1 hr', {}, 'An object sheds bright light in a 20 ft radius and dim light for another 20 ft.'),
-    S('resistance', 'Resistance', 0, ['cleric'], '1A', 'Touch', 'Conc. 1 min', { conc: true, dmg: '1d4', bonusDie: true }, 'A willing creature adds 1d4 to one saving throw of its choice before the spell ends.'),
+    S('resistance', 'Resistance', 0, ['cleric'], '1A', 'Touch', 'Conc. 1 min', { conc: true, dmg: '1d4', bonusDie: true }, 'Choose a damage type: once per turn, when the creature takes that damage, it reduces it by 1d4.'),
     S('word-of-radiance', 'Word of Radiance', 0, ['cleric'], '1A', 'Self (5 ft)', 'Inst.', { save: 'NW', dmg: '1d6', dt: 'radiant', sc: true }, 'Burning radiance bursts from you. Chosen creatures within 5 ft save or take 1d6 radiant.'),
-    S('chill-touch', 'Chill Touch', 0, ['warlock'], '1A', '120 ft', '1 rnd', { atk: true, dmg: '1d8', dt: 'necrotic', sc: true }, 'A ghostly hand clings to the target: 1d8 necrotic and it can’t regain HP until your next turn.'),
+    S('chill-touch', 'Chill Touch', 0, ['warlock'], '1A', 'Touch', 'Inst.', { atk: true, dmg: '1d10', dt: 'necrotic', sc: true }, 'Melee spell attack: 1d10 necrotic, and the target can’t regain HP until the end of your next turn.'),
     S('minor-illusion', 'Minor Illusion', 0, ['warlock'], '1A', '30 ft', '1 min', { save: 'Ph' }, 'Create a sound or the image of an object no larger than a 5 ft cube.'),
     S('mage-hand', 'Mage Hand', 0, ['warlock'], '1A', '30 ft', '1 min', {}, 'A spectral hand manipulates objects up to 10 lb at range.'),
     S('prestidigitation', 'Prestidigitation', 0, ['warlock'], '1A', '10 ft', '1 hr', {}, 'Minor magical tricks: sparks, cleaning, warming, tiny marks, small illusions.'),
-    S('friends', 'Friends', 0, ['warlock'], '1A', 'Self', 'Conc. 1 min', { conc: true }, 'Advantage on Charisma checks against one creature that isn’t hostile; it knows afterwards.'),
-    S('poison-spray', 'Poison Spray', 0, ['warlock'], '1A', '10 ft', 'Inst.', { save: 'VT', dmg: '1d12', dt: 'poison', sc: true }, 'A puff of noxious gas. The target saves or takes 1d12 poison.'),
-    S('blade-ward', 'Blade Ward', 0, ['warlock'], '1A', 'Self', '1 rnd', {}, 'Resistance to bludgeoning, piercing and slashing from weapon attacks until the end of your next turn.'),
+    S('friends', 'Friends', 0, ['warlock'], '1A', 'Self', 'Conc. 1 min', { conc: true }, 'Advantage on Charisma checks against one creature that isn\u2019t hostile; it knows afterwards.'),
+    S('poison-spray', 'Poison Spray', 0, ['warlock'], '1A', '30 ft', 'Inst.', { atk: true, dmg: '1d12', dt: 'poison', sc: true }, 'A spray of toxic mist. Ranged spell attack, 1d12 poison.'),
+    S('blade-ward', 'Blade Ward', 0, ['warlock'], '1A', 'Self', 'Conc. 1 min', { conc: true }, 'Attack rolls against you subtract 1d4 while the spell lasts.'),
 
     // 1st level
-    S('faerie-fire', 'Faerie Fire', 1, ['domain'], '1A', '60 ft', 'Conc. 1 min', { conc: true, save: 'HC' }, 'Objects and creatures in a 20 ft cube are outlined in light. Those that fail their save shed dim light, can’t benefit from being invisible, and attacks against them have advantage.'),
-    S('sleep', 'Sleep', 1, ['domain'], '1A', '90 ft', '1 min', { dmg: '5d8', dt: 'HP of creatures', up: '2d8' }, 'Roll 5d8: that many hit points of creatures in a 20 ft radius fall unconscious, lowest current HP first. +2d8 per slot level above 1st.'),
+    S('faerie-fire', 'Faerie Fire', 1, ['domain'], '1A', '60 ft', 'Conc. 1 min', { conc: true, save: 'HC' }, 'Objects and creatures in a 20 ft cube are outlined in light. Those that fail their save shed dim light, can\u2019t benefit from being invisible, and attacks against them have advantage.'),
+    S('sleep', 'Sleep', 1, ['domain'], '1A', '60 ft', 'Conc. 1 min', { conc: true, save: 'Bw' }, 'Creatures of your choice in a 5 ft radius sphere save or are Incapacitated until the end of their next turn, when they save again; on a second failure they fall Unconscious for the duration. Creatures that don’t sleep or are immune to exhaustion are unaffected.'),
     S('armor-of-agathys', 'Armor of Agathys', 1, ['warlock'], '1A', 'Self', '1 hr', { temp: 5, dt: 'cold' }, 'You gain 5 temporary HP (+5 per slot level above 1st). While they last, a creature that hits you in melee takes 5 cold damage (same scaling).'),
-    S('protection-from-evil-and-good', 'Protection from Evil and Good', 1, ['cleric', 'warlock'], '1A', 'Touch', 'Conc. 10 min', { conc: true }, 'Aberrations, celestials, elementals, fey, fiends and undead have disadvantage to attack the target, and it can’t be charmed, frightened or possessed by them.'),
+    S('protection-from-evil-and-good', 'Protection from Evil and Good', 1, ['cleric', 'warlock'], '1A', 'Touch', 'Conc. 10 min', { conc: true }, 'Aberrations, celestials, elementals, fey, fiends and undead have disadvantage to attack the target, and it can\u2019t be charmed, frightened or possessed by them.'),
     S('command', 'Command', 1, ['cleric'], '1A', '60 ft', '1 rnd', { save: 'Bw' }, 'A one-word command (approach, drop, flee, grovel, halt). On a failed save the target obeys on its next turn. +1 target per slot level above 1st.'),
-    S('cure-wounds', 'Cure Wounds', 1, ['cleric'], '1A', 'Touch', 'Inst.', { heal: true, dmg: '1d8', addMod: true, up: '1d8' }, 'A creature you touch regains 1d8 + your spellcasting modifier HP. +1d8 per slot level above 1st.'),
+    S('cure-wounds', 'Cure Wounds', 1, ['cleric'], '1A', 'Touch', 'Inst.', { heal: true, dmg: '2d8', addMod: true, up: '2d8' }, 'A creature you touch regains 2d8 + your spellcasting modifier HP. +2d8 per slot level above 1st.'),
     S('guiding-bolt', 'Guiding Bolt', 1, ['cleric'], '1A', '120 ft', '1 rnd', { atk: true, dmg: '4d6', dt: 'radiant', up: '1d6' }, 'A flash of light streaks toward a creature. Ranged spell attack, 4d6 radiant, and the next attack against it before the end of your next turn has advantage.'),
-    S('healing-word', 'Healing Word', 1, ['cleric'], '1 BA', '60 ft', 'Inst.', { heal: true, dmg: '1d4', addMod: true, up: '1d4' }, 'A creature you can see regains 1d4 + your spellcasting modifier HP. +1d4 per slot level above 1st.'),
+    S('healing-word', 'Healing Word', 1, ['cleric'], '1 BA', '60 ft', 'Inst.', { heal: true, dmg: '2d4', addMod: true, up: '2d4' }, 'A creature you can see regains 2d4 + your spellcasting modifier HP. +2d4 per slot level above 1st.'),
     S('bless', 'Bless', 1, ['cleric'], '1A', '30 ft', 'Conc. 1 min', { conc: true, dmg: '1d4', bonusDie: true }, 'Up to three creatures add 1d4 to attack rolls and saving throws for the duration.'),
     S('bane', 'Bane', 1, ['cleric'], '1A', '30 ft', 'Conc. 1 min', { conc: true, save: 'Dv' }, 'Up to three creatures that fail their save subtract 1d4 from attack rolls and saving throws.'),
     S('detect-magic', 'Detect Magic', 1, ['cleric'], '1A', 'Self', 'Conc. 10 min', { conc: true, rit: true }, 'Sense magic within 30 ft and see the aura and school of visible magic.'),
-    S('inflict-wounds', 'Inflict Wounds', 1, ['cleric'], '1A', 'Touch', 'Inst.', { atk: true, dmg: '3d10', dt: 'necrotic', up: '1d10' }, 'Melee spell attack, 3d10 necrotic.'),
+    S('inflict-wounds', 'Inflict Wounds', 1, ['cleric'], '1A', 'Touch', 'Inst.', { save: 'SR', dmg: '2d10', dt: 'necrotic', up: '1d10' }, 'The creature you touch takes 2d10 necrotic on a failed save, half on a success.'),
     S('sanctuary', 'Sanctuary', 1, ['cleric'], '1 BA', '30 ft', '1 min', { save: 'Bw' }, 'Anyone targeting the warded creature with an attack or harmful spell must first save or choose a new target.'),
     S('shield-of-faith', 'Shield of Faith', 1, ['cleric'], '1 BA', '60 ft', 'Conc. 10 min', { conc: true }, 'A shimmering field grants a creature +2 AC for the duration.'),
     S('hex', 'Hex', 1, ['warlock'], '1 BA', '90 ft', 'Conc. 1 hr', { conc: true, dmg: '1d6', dt: 'necrotic' }, 'Curse a creature: your hits deal +1d6 necrotic to it, and it has disadvantage on checks with one ability you choose.'),
     S('hellish-rebuke', 'Hellish Rebuke', 1, ['warlock'], '1 R', '60 ft', 'Inst.', { save: 'Dv', dmg: '2d10', dt: 'fire', up: '1d10' }, 'When damaged by a creature you can see, it is wreathed in flames: 2d10 fire, half on a successful save.'),
     S('charm-person', 'Charm Person', 1, ['warlock'], '1A', '30 ft', '1 hr', { save: 'Bw' }, 'A humanoid saves (with advantage if you are fighting it) or is charmed and regards you as a friendly acquaintance.'),
-    S('witch-bolt', 'Witch Bolt', 1, ['warlock'], '1A', '30 ft', 'Conc. 1 min', { conc: true, atk: true, dmg: '1d12', dt: 'lightning', up: '1d12' }, 'A beam of crackling energy: ranged spell attack, 1d12 lightning, and you can repeat 1d12 each turn as an action.'),
+    S('witch-bolt', 'Witch Bolt', 1, ['warlock'], '1A', '60 ft', 'Conc. 1 min', { conc: true, atk: true, dmg: '2d12', dt: 'lightning', up: '1d12' }, 'Ranged spell attack, 2d12 lightning. On later turns a bonus action deals 1d12 lightning to the target automatically.'),
     S('comprehend-languages', 'Comprehend Languages', 1, ['warlock'], '1A', 'Self', '1 hr', { rit: true }, 'Understand any spoken language you hear and read any written language you touch.'),
     S('expeditious-retreat', 'Expeditious Retreat', 1, ['warlock'], '1 BA', 'Self', 'Conc. 10 min', { conc: true }, 'Dash as a bonus action on each of your turns.'),
-    S('arms-of-hadar', 'Arms of Hadar', 1, ['warlock'], '1A', 'Self (10 ft)', 'Inst.', { save: 'OF', dmg: '2d6', dt: 'necrotic', up: '1d6' }, 'Dark tendrils lash out around you: 2d6 necrotic (half on a save), and those that fail can’t take reactions.'),
+    S('arms-of-hadar', 'Arms of Hadar', 1, ['warlock'], '1A', 'Self (10 ft)', 'Inst.', { save: 'OF', dmg: '2d6', dt: 'necrotic', up: '1d6' }, 'Dark tendrils lash out around you: 2d6 necrotic (half on a save), and those that fail can\u2019t take reactions.'),
     S('unseen-servant', 'Unseen Servant', 1, ['warlock'], '1A', '60 ft', '1 hr', { rit: true }, 'An invisible, mindless force performs simple tasks at your command.'),
     S('illusory-script', 'Illusory Script', 1, ['warlock'], '1 min', 'Touch', '10 days', { rit: true }, 'Write a message only chosen creatures can read; others see something else.'),
 
     // 2nd level (domain and infernal legacy, for later levels)
     S('moonbeam', 'Moonbeam', 2, ['domain'], '1A', '120 ft', 'Conc. 1 min', { conc: true, save: 'SR', dmg: '2d10', dt: 'radiant', up: '1d10' }, 'A 5 ft radius pillar of moonlight: creatures entering or starting there save or take 2d10 radiant (half on save).'),
     S('see-invisibility', 'See Invisibility', 2, ['domain'], '1A', 'Self', '1 hr', {}, 'See invisible creatures and objects and into the Ethereal Plane.'),
-    S('darkness', 'Darkness', 2, ['warlock'], '1A', '60 ft', 'Conc. 10 min', { conc: true }, 'Magical darkness fills a 15 ft radius sphere. Darkvision can’t see through it.')
+    S('darkness', 'Darkness', 2, ['warlock'], '1A', '60 ft', 'Conc. 10 min', { conc: true }, 'Magical darkness fills a 15 ft radius sphere. Darkvision can\u2019t see through it.')
   ];
   var SPELL_BY_ID = {};
   SPELLS.forEach(function (s) { SPELL_BY_ID[s.id] = s; });
@@ -241,6 +247,17 @@
     skills: { acrobatics: 0, animal: 2, arcana: 6, athletics: -2, deception: 4, history: 6, insight: 4, intimidation: 6, investigation: 6, medicine: 2, nature: 4, perception: 2, performance: 4, persuasion: 4, religion: 6, sleight: 0, stealth: 0, survival: 2 },
     rapierHit: 2, tflDC: 14, tflAtk: 6, clrDC: 12, clrAtk: 4,
     slots1: 3, pact: 1, bardic: 4, cd: 1, hitDice: 3, weight: 48, cap: [35, 70, 105, 210], prepared: 4, known: 2
+  };
+
+  // Spell lines as printed on the PDF: [time, range, duration]
+  var ZAPHYRE_SPELLS = {
+    thaumaturgy: ['1A', '30 ft', '1 min'], 'eldritch-blast': ['1A', '120 ft', 'Inst.'],
+    mending: ['1 min', 'Touch', 'Inst.'], 'spare-the-dying': ['1A', 'Touch', 'Inst.'],
+    thunderclap: ['1A', 'Self 5 ft', 'Inst.'], 'toll-the-dead': ['1A', '60 ft', 'Inst.'],
+    'faerie-fire': ['1A', '60 ft', '1 min'], sleep: ['1A', '90 ft', '1 min'],
+    'armor-of-agathys': ['1A', 'Self', '1 hr'], command: ['1A', '60 ft', '1 rnd'],
+    'cure-wounds': ['1A', 'Touch', 'Inst.'], 'guiding-bolt': ['1A', '120 ft', '1 rnd'],
+    'healing-word': ['1 BA', '60 ft', 'Inst.'], 'protection-from-evil-and-good': ['1A', 'Touch', '10 min']
   };
 
   // ---- Default character: Zaphyre Blight, as written on the sheet.
@@ -264,16 +281,17 @@
     items: [
       { n: 'Leather armor', loc: 'Worn', w: 10 },
       { n: 'Rapier', loc: 'Carried', w: 2 },
-      { n: 'Diplomat’s pack', loc: 'Back', w: 36 }
+      { n: 'Diplomat\u2019s pack', loc: 'Back', w: 36 }
     ],
     coins: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
     magicItems: [],
     feats: [],
+    magicInitiate: { ability: '', cantrips: [], spell: '' },
     spells: {
       tiefling: { cantrips: ['eldritch-blast', 'thunderclap'], known: ['armor-of-agathys', 'protection-from-evil-and-good'] },
       cleric: { cantrips: ['mending', 'spare-the-dying', 'toll-the-dead'], prepared: ['command', 'cure-wounds', 'guiding-bolt', 'healing-word'] }
     },
-    used: { slots: {}, pact: 0, bardic: 0, cd: 0, eyes: 0, hd: 0, legacy: {} },
+    used: { slots: {}, pact: 0, bardic: 0, cd: 0, eyes: 0, hd: 0, legacy: {}, mi: 0 },
     conditions: [], exhaustion: 0, death: { s: 0, f: 0 }, concentration: '',
     notes: { traits: '', ideals: '', bonds: '', flaws: '', backstory: '', other: '' },
     lifestyle: '', trinket: ''
@@ -281,7 +299,7 @@
 
   window.OSR = {
     ABILITIES: ABILITIES, SAVES: SAVES, SKILLS: SKILLS, XP: XP, CLASSES: CLASSES, FULL_SLOTS: FULL_SLOTS,
-    MC_PREREQ: MC_PREREQ, BACKGROUNDS: BACKGROUNDS, ARMOR: ARMOR, WEAPONS: WEAPONS, CONDITIONS: CONDITIONS,
+    MC_PREREQ: MC_PREREQ, BACKGROUNDS: BACKGROUNDS, MAGIC_INITIATE: MAGIC_INITIATE, ZAPHYRE_SPELLS: ZAPHYRE_SPELLS, ARMOR: ARMOR, WEAPONS: WEAPONS, CONDITIONS: CONDITIONS,
     SPELLS: SPELLS, SPELL: SPELL_BY_ID, ZAPHYRE_SHEET: ZAPHYRE_SHEET, ZAPHYRE: ZAPHYRE
   };
 })();

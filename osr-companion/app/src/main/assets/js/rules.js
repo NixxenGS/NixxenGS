@@ -4,7 +4,7 @@
   var D = window.OSR;
 
   function mod(score) { return Math.floor((score - 10) / 2); }
-  function sign(n) { return (n >= 0 ? '+' : '−') + Math.abs(n); }
+  function sign(n) { return (n >= 0 ? '+' : '\u2212') + Math.abs(n); }
   function lvlOf(c, id) {
     for (var i = 0; i < c.classes.length; i++) if (c.classes[i].id === id) return c.classes[i].level | 0;
     return 0;
@@ -87,6 +87,13 @@
     d.casters = [];
     if (d.tfl) d.casters.push({ id: 'tiefling', tag: 'Tfl', n: 'Tiefling', ab: 'cha', dc: 8 + d.prof + m.cha, atk: d.prof + m.cha });
     if (d.clr) d.casters.push({ id: 'cleric', tag: 'Clr', n: 'Cleric', ab: 'wis', dc: 8 + d.prof + m.wis, atk: d.prof + m.wis });
+    var bgd = D.BACKGROUNDS[c.background];
+    d.mi = null;
+    if (bgd && bgd.feat && c.magicInitiate) {
+      var mab = c.magicInitiate.ability || 'wis';
+      d.mi = { ab: mab, chosen: !!c.magicInitiate.ability };
+      d.casters.push({ id: 'mi', tag: 'MI', n: 'Magic Initiate', ab: mab, dc: 8 + d.prof + m[mab], atk: d.prof + m[mab] });
+    }
     d.slots = d.clr ? D.FULL_SLOTS[d.clr].slice() : [];
     d.pact = tt ? { n: tt[2], lvl: tt[3] } : null;
     d.tflCantrips = tt ? tt[0] : 0;
@@ -117,6 +124,9 @@
     d.enc = d.weight > d.cap.max ? 'over' : d.weight > d.cap.heavy ? 'heavy' : d.weight > d.cap.enc ? 'enc' : 'ok';
     var pen = d.enc === 'enc' ? 10 : d.enc === 'heavy' ? 20 : 0;
     if (ar.str && str < ar.str) pen += 10;
+    d.exh = Math.max(0, Math.min(6, c.exhaustion | 0));
+    d.d20pen = 2 * d.exh;
+    pen += 5 * d.exh;
     d.speed = Math.max(0, (c.speed || 30) - pen);
     d.speedPenalty = pen;
 
@@ -135,8 +145,10 @@
         range: ranged ? (props.match(/\(([^)]+)\)/) || [, ''])[1] + ' ft' : /Reach/.test(props) ? 'Melee 10 ft' : 'Melee 5 ft'
       };
     });
+    d.unarmed = { hit: m.str + d.prof, dmg: Math.max(0, 1 + m.str), dc: 8 + m.str + d.prof };
     return d;
   }
+  function casterOf(d, id) { for (var i = 0; i < d.casters.length; i++) if (d.casters[i].id === id) return d.casters[i]; return null; }
 
   // ---- Features list for the Features page (text from the Class Compendium).
   function features(c, d) {
@@ -150,7 +162,7 @@
     }
     if (d.tfl >= 2) {
       add('Tiefling', 2, 'Eldritch Invocations', 'You gain eldritch invocations from the warlock list (no Pact Boon or 6th+ level slot requirements). Known: ' + d.invocations + '.');
-      add('Tiefling', 2, 'Jack of All Trades', 'Add half your proficiency bonus (rounded down) to any ability check that doesn’t already include your proficiency bonus.');
+      add('Tiefling', 2, 'Jack of All Trades', 'Add half your proficiency bonus (rounded down) to any ability check that doesn\u2019t already include your proficiency bonus.');
     }
     if (d.tfl >= 3) {
       add('Tiefling', 3, 'Infernal Heritage', 'Path of the Pact, the Charmer or Hellfire. Features at 3rd, 6th, 10th, 14th and 18th level.');
@@ -159,7 +171,7 @@
     if (d.tfl >= 5) add('Tiefling', 5, 'Font of Inspiration', 'You regain all expended uses of Bardic Inspiration on a short or long rest.');
     if (d.clr >= 1) {
       add('Cleric', 1, 'Spellcasting', 'Prepare WIS modifier + cleric level spells (min 1) after a long rest. Spell save DC = 8 + proficiency + WIS; spell attack = proficiency + WIS. Holy symbol focus. Ritual casting for prepared ritual spells.', 'slots');
-      add('Cleric', 1, 'Divine Domain', 'Domain spells are always prepared and don’t count against your prepared spells.');
+      add('Cleric', 1, 'Divine Domain', 'Domain spells are always prepared and don\u2019t count against your prepared spells.');
     }
     if (d.twilight) {
       add('Twilight Domain', 1, 'Bonus Proficiencies', 'Proficiency with martial weapons and heavy armor.');
@@ -176,7 +188,12 @@
     if (d.twilight && d.clr >= 8) add('Twilight Domain', 8, 'Divine Strike', 'Once per turn, a weapon hit deals an extra 1d8 radiant (2d8 at 14th).');
     if (d.clr >= 10) add('Cleric', 10, 'Divine Intervention', 'Roll percentile dice; if you roll your cleric level or lower, your deity intervenes.');
     var bg = D.BACKGROUNDS[c.background];
-    if (bg) add('Background · ' + c.background, 0, bg.feature, bg.text);
+    if (bg) {
+      var mi = c.magicInitiate || {};
+      var picks = (mi.cantrips || []).concat(mi.spell ? [mi.spell] : []).map(function (id) { return D.SPELL[id] ? D.SPELL[id].n : id; });
+      add('Background \xb7 ' + c.background, 0, 'Origin feat: ' + bg.feat, D.MAGIC_INITIATE + (picks.length ? ' Chosen: ' + picks.join(', ') + (mi.ability ? ' (' + mi.ability.toUpperCase() + ')' : '') + '.' : ' Not chosen yet \u2014 pick them in the Spellbook under Manage.'), 'mi');
+      add('Background \xb7 ' + c.background, 0, 'Skills & tool', 'Insight, Religion and ' + bg.tool + '. Ability increases: +2/+1 or +1/+1/+1 among ' + bg.abilities.map(function (k) { return k.toUpperCase(); }).join(', ') + '.');
+    }
     return f;
   }
 
@@ -202,10 +219,18 @@
 
     // Abilities
     var lo = D.ABILITIES.filter(function (a) { return c.abilities[a.k] < 3 || c.abilities[a.k] > 20; });
-    if (lo.length) r('error', 'Abilities', 'Ability score out of range', lo.map(function (a) { return a.s + ' ' + c.abilities[a.k]; }).join(', ') + ' (3–20 before epic features).');
-    else r('ok', 'Abilities', 'Ability scores within 3–20');
-    r('ok', 'Abilities', 'Bonuses use the standard table', D.ABILITIES.map(function (a) { return a.s + ' ' + c.abilities[a.k] + ' → ' + sign(d.mod[a.k]); }).join(' · '));
-    if (d.tfl) r('info', 'Abilities', 'Tiefling adjustments included?', 'The race-class gives +1 INT and +2 CHA. The sheet’s INT 18 and CHA 18 are treated as final scores; with point buy or standard array that means 17 and 16 before the bonus.');
+    if (lo.length) r('error', 'Abilities', 'Ability score out of range', lo.map(function (a) { return a.s + ' ' + c.abilities[a.k]; }).join(', ') + ' (3\u201320 before epic features).');
+    else r('ok', 'Abilities', 'Ability scores within 3\u201320');
+    r('ok', 'Abilities', 'Bonuses use the standard table', D.ABILITIES.map(function (a) { return a.s + ' ' + c.abilities[a.k] + ' \u2192 ' + sign(d.mod[a.k]); }).join(' \xb7 '));
+    var bgA = D.BACKGROUNDS[c.background];
+    var asiAny = (d.tfl >= 4 ? 1 : 0) + (d.clr >= 4 ? 1 : 0);
+    if (bgA && !asiAny) {
+      var oc = originCheck(c, bgA);
+      if (oc.over.length) r('error', 'Abilities', 'Score above 20', oc.over.join(', '));
+      if (oc.method) r('ok', 'Abilities', 'Scores fit ' + oc.method, 'Race-class +1 INT/+2 CHA and Acolyte ' + oc.split + ' give base scores ' + oc.base + '.');
+      else if (oc.rolled) r('info', 'Abilities', 'Scores must have been rolled', 'After removing the race-class +1 INT/+2 CHA and an Acolyte split (+2/+1 or +1/+1/+1 on INT, WIS, CHA), no split matches the standard array or 27-point buy' + (oc.low ? ' (' + oc.low + ' is below the minimum of 8)' : '') + '. Rolled scores work, e.g. Acolyte ' + oc.rolled.split + ' \u2192 base ' + oc.rolled.base + '.');
+      else r('error', 'Abilities', 'Scores don\u2019t fit any generation method', 'Base scores fall outside 3\u201318 for every Acolyte split.');
+    }
     var asiLevels = (d.tfl >= 4 ? 1 : 0) + (d.clr >= 4 ? 1 : 0);
     if (asiLevels) r('info', 'Abilities', asiLevels + ' Ability Score Improvement(s) available', 'Remember to apply them.');
 
@@ -213,14 +238,14 @@
     var sp = c.saveProf.slice().sort().join(',');
     var want = (D.CLASSES[c.classes[0].id].saves || []).slice().sort().join(',');
     if (sp === want) r('ok', 'Saves', 'Save proficiencies come from the first class', 'INT and CHA from Tiefling; multiclassing into Cleric adds none.');
-    else r('error', 'Saves', 'Save proficiencies don’t match the starting class', 'Expected ' + want.toUpperCase() + ', found ' + (sp.toUpperCase() || 'none') + '.');
+    else r('error', 'Saves', 'Save proficiencies don\u2019t match the starting class', 'Expected ' + want.toUpperCase() + ', found ' + (sp.toUpperCase() || 'none') + '.');
     r('ok', 'Saves', 'Paired saves follow the sheet formula', 'Each save = both ability bonuses + proficiency once per proficient ability in the pair. Bewitchment (INT + CHA) gets it twice: ' + sign(d.saves.Bw) + '.');
 
     // HP
     var hp = c.hp.max;
-    if (hp < d.hpMin || hp > d.hpMaxPossible) r('error', 'Hit points', 'HP maximum outside possible range', 'Range ' + d.hpMin + '–' + d.hpMaxPossible + ' for level ' + d.level + ' with CON ' + sign(d.mod.con) + '.');
+    if (hp < d.hpMin || hp > d.hpMaxPossible) r('error', 'Hit points', 'HP maximum outside possible range', 'Range ' + d.hpMin + '\u2013' + d.hpMaxPossible + ' for level ' + d.level + ' with CON ' + sign(d.mod.con) + '.');
     else if (hp === d.hpAvg) r('ok', 'Hit points', 'HP maximum matches fixed average (' + d.hpAvg + ')');
-    else r('warn', 'Hit points', 'HP ' + hp + ' differs from the fixed average of ' + d.hpAvg, '1st level 8 + CON (' + (8 + d.mod.con) + '), then ' + (5 + d.mod.con) + ' per level using the fixed value. ' + hp + ' is legal only if the hit dice were rolled (possible range ' + d.hpMin + '–' + d.hpMaxPossible + '). Confirm with your DM.');
+    else r('warn', 'Hit points', 'HP ' + hp + ' differs from the fixed average of ' + d.hpAvg, '1st level 8 + CON (' + (8 + d.mod.con) + '), then ' + (5 + d.mod.con) + ' per level using the fixed value. ' + hp + ' is legal only if the hit dice were rolled (possible range ' + d.hpMin + '\u2013' + d.hpMaxPossible + '). Confirm with your DM.');
     r('ok', 'Hit points', 'Hit dice: ' + d.level + 'd8', (d.tfl ? d.tfl + 'd8 Tiefling' : '') + (d.clr ? ' + ' + d.clr + 'd8 Cleric' : ''));
     r('ok', 'Hit points', 'Vitality ' + d.vitMax + ' and Acumen ' + d.acuMax, 'Vitality = STR + DEX + CON bonuses (' + [d.mod.str, d.mod.dex, d.mod.con].map(sign).join(' ') + '); Acumen = INT + WIS + CHA bonuses (' + [d.mod.int, d.mod.wis, d.mod.cha].map(sign).join(' ') + ').');
 
@@ -237,8 +262,8 @@
       if (miss.length) r('warn', 'Skills', 'Background skills missing', c.background + ' grants ' + bgSkills.map(sn).join(' and ') + '.');
       else r('ok', 'Skills', c.background + ' skills: ' + bgSkills.map(sn).join(', '));
     }
-    if (bad.length) r('error', 'Skills', 'Skill not on the ' + firstC.n + ' list', bad.map(sn).join(', ') + ' can’t be picked from the class list.');
-    if (classPicks.length === firstC.skillCount && !bad.length) r('ok', 'Skills', firstC.n + ' skills: ' + classPicks.map(sn).join(', '), 'Choose ' + firstC.skillCount + ' from the class list — all valid.');
+    if (bad.length) r('error', 'Skills', 'Skill not on the ' + firstC.n + ' list', bad.map(sn).join(', ') + ' can\u2019t be picked from the class list.');
+    if (classPicks.length === firstC.skillCount && !bad.length) r('ok', 'Skills', firstC.n + ' skills: ' + classPicks.map(sn).join(', '), 'Choose ' + firstC.skillCount + ' from the class list \u2014 all valid.');
     else if (classPicks.length !== firstC.skillCount) r(classPicks.length > firstC.skillCount ? 'error' : 'warn', 'Skills', classPicks.length + ' class skills chosen, ' + firstC.skillCount + ' allowed', 'Multiclassing into Cleric grants no skills.');
     if (c.expertise.length) {
       var allowed = d.tfl >= 10 ? 4 : d.tfl >= 3 ? 2 : 0;
@@ -252,12 +277,27 @@
       else r('warn', 'Proficiencies', 'Tiefling grants three musical instruments', 'Found ' + (c.tools || []).length + '.');
     }
     var langs = c.languages || [];
-    if (langs.some(function (l) { return /^dragon$/i.test(l); })) r('info', 'Proficiencies', '“Dragon” is usually called Draconic', 'Just a naming nit for the sheet.');
-    if (bgd && bgd.languages) r('info', 'Proficiencies', c.background + ' grants ' + bgd.languages + ' extra languages', 'The race-class doesn’t list languages, so with Common and Infernal as defaults, ' + langs.length + ' known means ' + Math.max(0, 2 + bgd.languages - langs.length) + ' language choice(s) still open.');
+    if (langs.some(function (l) { return /^dragon$/i.test(l); })) r('info', 'Proficiencies', '\u201cDragon\u201d is usually called Draconic', 'Just a naming nit for the sheet.');
+    var STD = /^(common sign language|draconic|dragon|dwarvish|elvish|giant|gnomish|goblin|halfling|orc)$/i;
+    var RARE = /^(abyssal|celestial|deep speech|druidic|infernal|primordial|sylvan|thieves.? cant|undercommon)$/i;
+    var std = langs.filter(function (l) { return STD.test(l); }), rare = langs.filter(function (l) { return RARE.test(l); });
+    if (langs.some(function (l) { return /^common$/i.test(l); }) && std.length === 2 && !rare.length) r('ok', 'Proficiencies', 'Languages: Common + 2 standard');
+    else r('info', 'Proficiencies', 'Languages: ' + langs.join(', '), '2024 origins give Common plus two standard languages (' + std.length + ' chosen: ' + (std.join(', ') || 'none') + ').' + (rare.length ? ' ' + rare.join(', ') + ' is a rare language, so it needs a source; fine if your table lets the Tiefling race-class grant Infernal.' : ''));
+    if (bgd) {
+      if ((c.tools || []).some(function (t) { return /calligraph/i.test(t); })) r('ok', 'Proficiencies', bgd.tool + ' (' + c.background + ')');
+      else r('warn', 'Proficiencies', bgd.tool + ' missing', 'The 2024 ' + c.background + ' background grants this tool proficiency.');
+      var mi = c.magicInitiate || { cantrips: [], spell: '' };
+      var miBad = (mi.cantrips || []).filter(function (id) { var sp = D.SPELL[id]; return !sp || sp.lvl !== 0 || sp.lists.indexOf(bgd.featList) < 0; });
+      var spOk = mi.spell && D.SPELL[mi.spell] && D.SPELL[mi.spell].lvl === 1 && D.SPELL[mi.spell].lists.indexOf(bgd.featList) >= 0;
+      if (!mi.ability && !(mi.cantrips || []).length && !mi.spell) r('warn', 'Feats', 'Origin feat missing: ' + bgd.feat, 'The 2024 ' + c.background + ' grants Magic Initiate (Cleric): two cleric cantrips and one level 1 cleric spell (free once per long rest), using INT, WIS or CHA. The sheet lists Feats: None. Pick them in Spellbook \u2192 Manage.');
+      else if ((mi.cantrips || []).length === 2 && !miBad.length && spOk && mi.ability) r('ok', 'Feats', bgd.feat + ': ' + mi.cantrips.concat([mi.spell]).map(function (id) { return D.SPELL[id].n; }).join(', '), 'Spellcasting ability ' + mi.ability.toUpperCase() + '.');
+      else r('warn', 'Feats', bgd.feat + ' incomplete', 'Needs 2 cleric cantrips (' + (mi.cantrips || []).length + ' chosen' + (miBad.length ? ', not cleric: ' + miBad.join(', ') : '') + '), 1 level 1 cleric spell (' + (spOk ? 'done' : 'missing') + ') and a spellcasting ability (' + (mi.ability ? mi.ability.toUpperCase() : 'missing') + ').');
+      r('info', 'Feats', 'Shelter of the Faithful is the 2014 Acolyte feature', 'In 5.5e the background gives the Origin feat instead, so the sheet\u2019s background feature is replaced by Magic Initiate.');
+    }
 
     // Armor & weapons
     var ar = d.armor;
-    if (ar.type !== 'none' && !d.armorProf[ar.type]) r('error', 'Equipment', 'Not proficient with ' + ar.n.toLowerCase() + ' (' + ar.type + ')', 'Disadvantage on STR/DEX rolls and you can’t cast spells while wearing it.');
+    if (ar.type !== 'none' && !d.armorProf[ar.type]) r('error', 'Equipment', 'Not proficient with ' + ar.n.toLowerCase() + ' (' + ar.type + ')', 'Disadvantage on STR/DEX rolls and you can\u2019t cast spells while wearing it.');
     else if (ar.type !== 'none') r('ok', 'Equipment', ar.n + ' armor: proficient', 'AC ' + ar.base + ' + DEX ' + sign(Math.min(d.mod.dex, ar.dex)) + (c.shield ? ' + shield 2' : '') + ' = ' + d.ac + '.');
     if (ar.str && c.abilities.str < ar.str) r('warn', 'Equipment', ar.n + ' needs STR ' + ar.str, 'Speed drops by 10 ft.');
     if (c.shield && !d.armorProf.shield) r('error', 'Equipment', 'Not proficient with shields');
@@ -274,12 +314,19 @@
       if (!/(lute|flute|drum|lyre|horn|viol|pan|bagpipe|dulcimer|shawm|instrument)/.test(names)) missing.push('a musical instrument (lute or other)');
       if (missing.length) r('warn', 'Equipment', 'Starting equipment incomplete', 'Tiefling starting gear includes leather armor and a dagger, plus a lute or other instrument. Not on the sheet: ' + missing.join(' and ') + '.');
     }
+    if (bgd && bgd.equipA) {
+      var inames = c.items.map(function (i) { return i.n.toLowerCase(); }).join('|');
+      var missA = bgd.equipA.filter(function (x) { return !/GP$/.test(x) && inames.indexOf(x.toLowerCase().replace(/ \(.*/, '').replace('\u2019', '')) < 0 && inames.indexOf(x.toLowerCase().replace(/ \(.*/, '')) < 0; });
+      var gp = (+c.coins.gp || 0) + (+c.coins.pp || 0) * 10;
+      if (missA.length && gp < 50) r('warn', 'Equipment', c.background + ' equipment missing', 'Choose A: ' + bgd.equipA.join(', ') + '; or B: ' + bgd.equipB + '. The sheet has neither (0 GP). Option A also gives the Holy Symbol a Cleric uses as a spellcasting focus.');
+      else r('ok', 'Equipment', c.background + ' equipment present');
+    }
     var dp = c.items.filter(function (i) { return /diplomat/i.test(i.n); })[0];
-    if (dp && +dp.w !== 39) r('warn', 'Equipment', 'Diplomat’s pack weighs 39 lb', 'The sheet records ' + dp.w + ' lb (chest 25, fine clothes 6, and so on add to 39). Corrected total: ' + (d.weight - dp.w + 39) + ' lb.');
+    if (dp && +dp.w !== 39) r('warn', 'Equipment', 'Diplomat\u2019s pack weighs 39 lb', 'The sheet records ' + dp.w + ' lb (chest 25, fine clothes 6, and so on add to 39). Corrected total: ' + (d.weight - dp.w + 39) + ' lb.');
 
     // Encumbrance
     if (d.enc === 'ok') r('ok', 'Burden', 'Carrying ' + d.weight + ' lb of ' + d.cap.enc + ' lb', 'Unencumbered.');
-    else r(d.enc === 'over' ? 'error' : 'warn', 'Burden', (d.enc === 'enc' ? 'Encumbered' : d.enc === 'heavy' ? 'Heavily encumbered' : 'Over maximum load') + ': ' + d.weight + ' lb carried', 'STR ' + c.abilities.str + ' gives ' + d.cap.enc + ' lb before encumbrance (STR × 5). ' + (d.enc === 'enc' ? 'Speed −10 ft (' + d.speed + ' ft).' : d.enc === 'heavy' ? 'Speed −20 ft and disadvantage on STR, DEX and CON rolls.' : 'You can’t move.') + ' The sheet lists speed 30 ft.');
+    else r(d.enc === 'over' ? 'error' : 'warn', 'Burden', (d.enc === 'enc' ? 'Encumbered' : d.enc === 'heavy' ? 'Heavily encumbered' : 'Over maximum load') + ': ' + d.weight + ' lb carried', 'STR ' + c.abilities.str + ' gives ' + d.cap.enc + ' lb before encumbrance (STR \xd7 5). ' + (d.enc === 'enc' ? 'Speed \u221210 ft (' + d.speed + ' ft).' : d.enc === 'heavy' ? 'Speed \u221220 ft and disadvantage on STR, DEX and CON rolls.' : 'You can\u2019t move.') + ' The sheet lists speed 30 ft.');
 
     // Spells
     var tfs = c.spells.tiefling || { cantrips: [], known: [] };
@@ -293,8 +340,8 @@
       var badK = tfs.known.filter(function (id) { var s = D.SPELL[id]; return !s || s.lists.indexOf('warlock') < 0 || s.lvl < 1 || s.lvl > d.pact.lvl; });
       if (tfs.known.length === d.tflKnown && !badK.length) r('ok', 'Spells', 'Tiefling spells known: ' + tfs.known.map(nm).join(', '), d.tflKnown + ' warlock spells of slot level ' + d.pact.lvl + ' or lower.');
       else r(tfs.known.length > d.tflKnown || badK.length ? 'error' : 'warn', 'Spells', 'Tiefling spells known: ' + tfs.known.length + ' of ' + d.tflKnown, badK.length ? 'Not allowed: ' + badK.map(nm).join(', ') + ' (warlock list, up to ' + ordinal(d.pact.lvl) + ' level).' : '');
-      r('ok', 'Spells', 'Pact slots: ' + d.pact.n + ' × ' + ordinal(d.pact.lvl) + ' level', 'Recover on a short or long rest. Kept separate from Cleric slots under multiclass rules.');
-      r('ok', 'Spells', 'Tiefling DC ' + d.casters[0].dc + ', attack ' + sign(d.casters[0].atk), '8 + prof ' + d.prof + ' + CHA ' + sign(d.mod.cha) + '.');
+      r('ok', 'Spells', 'Pact slots: ' + d.pact.n + ' \xd7 ' + ordinal(d.pact.lvl) + ' level', 'Recover on a short or long rest. Kept separate from Cleric slots under multiclass rules.');
+      r('ok', 'Spells', 'Tiefling DC ' + casterOf(d, 'tiefling').dc + ', attack ' + sign(casterOf(d, 'tiefling').atk), '8 + prof ' + d.prof + ' + CHA ' + sign(d.mod.cha) + '.');
     }
     if (d.clr) {
       var cc = cls.cantrips.filter(function (id) { var s = D.SPELL[id]; return !s || s.lvl !== 0 || s.lists.indexOf('cleric') < 0; });
@@ -304,17 +351,24 @@
       var dup = cls.prepared.filter(function (id) { return d.domainSpells.indexOf(id) >= 0; });
       if (cls.prepared.length <= d.clrPrepared && !bp.length) r(cls.prepared.length === d.clrPrepared ? 'ok' : 'info', 'Spells', 'Cleric prepared: ' + cls.prepared.length + ' of ' + d.clrPrepared, cls.prepared.map(nm).join(', ') + '. Limit = WIS ' + sign(d.mod.wis) + ' + Cleric level ' + d.clr + '.');
       else r('error', 'Spells', 'Cleric prepared: ' + cls.prepared.length + ' of ' + d.clrPrepared, bp.length ? 'Not allowed: ' + bp.map(nm).join(', ') : 'Too many prepared spells.');
-      if (dup.length) r('warn', 'Spells', 'Domain spell also prepared', dup.map(nm).join(', ') + ' is always prepared and doesn’t need a slot in your list.');
+      if (dup.length) r('warn', 'Spells', 'Domain spell also prepared', dup.map(nm).join(', ') + ' is always prepared and doesn\u2019t need a slot in your list.');
       if (d.domainSpells.length) r('ok', 'Spells', 'Domain spells always prepared: ' + d.domainSpells.map(nm).join(', '));
-      r('ok', 'Spells', 'Cleric slots: ' + d.slots.map(function (n, i) { return n + ' × ' + ordinal(i + 1); }).join(', '), 'Multiclass caster level ' + d.clr + ' (Pact Magic doesn’t count).');
-      r('ok', 'Spells', 'Cleric DC ' + d.casters[d.casters.length - 1].dc + ', attack ' + sign(d.casters[d.casters.length - 1].atk), '8 + prof ' + d.prof + ' + WIS ' + sign(d.mod.wis) + '.');
+      r('ok', 'Spells', 'Cleric slots: ' + d.slots.map(function (n, i) { return n + ' \xd7 ' + ordinal(i + 1); }).join(', '), 'Multiclass caster level ' + d.clr + ' (Pact Magic doesn\u2019t count).');
+      r('ok', 'Spells', 'Cleric DC ' + casterOf(d, 'cleric').dc + ', attack ' + sign(casterOf(d, 'cleric').atk), '8 + prof ' + d.prof + ' + WIS ' + sign(d.mod.wis) + '.');
     }
     if (d.tfl >= 2) {
       var inv = (c.invocations || []).length;
       if (inv !== d.invocations) r('warn', 'Spells', 'Eldritch invocations: ' + inv + ' of ' + d.invocations);
     }
-    if (d.bardic) r('ok', 'Resources', 'Bardic Inspiration d' + d.bardic.die + ' × ' + d.bardic.uses, 'Uses = CHA modifier ' + sign(d.mod.cha) + '.');
-    if (d.cd) r('ok', 'Resources', 'Channel Divinity × ' + d.cd + ' per short rest');
+    if (d.bardic) r('ok', 'Resources', 'Bardic Inspiration d' + d.bardic.die + ' \xd7 ' + d.bardic.uses, 'Uses = CHA modifier ' + sign(d.mod.cha) + '.');
+    if (d.cd) r('ok', 'Resources', 'Channel Divinity \xd7 ' + d.cd + ' per short rest');
+
+    if (c.id === 'zaphyre') {
+      var old = spellDiffs(c).filter(function (x) { return !x.ok; });
+      if (old.length) r('warn', 'Spells', old.length + ' spells on the sheet use 2014 stats', old.map(function (x) { return x.n + ': ' + x.rec + ' \u2192 ' + x.comp; }).join('; ') + '.');
+      r('info', 'Spells', '2024 healing dice', 'Cure Wounds heals 2d8 + WIS and Healing Word 2d4 + WIS in 5.5e (both double the 2014 dice).');
+    }
+    if (d.exh) r('warn', 'Conditions', 'Exhaustion ' + d.exh, '\u2212' + d.d20pen + ' to every d20 test and \u2212' + 5 * d.exh + ' ft speed (2024 rules).');
 
     // XP
     var need = D.XP[Math.min(19, d.level - 1)];
@@ -353,8 +407,44 @@
     a('Tiefling spells known', s.known, d.tflKnown);
     a('Carrying capacity', s.cap.join(' / '), [d.cap.enc, d.cap.heavy, d.cap.max, d.cap.push].join(' / '));
     a('Weight carried', s.weight + ' lb', d.weight + ' lb');
+    spellDiffs(c).forEach(function (x) { a(x.n + ' (2024)', x.rec, x.comp); });
     return out;
   }
 
-  window.Rules = { mod: mod, sign: sign, derive: derive, features: features, validate: validate, audit: audit, ordinal: ordinal, lvlOf: lvlOf };
+  function norm(t) { return String(t).replace(/^Conc\. /, '').replace(/[()]/g, '').trim(); }
+  function spellDiffs(c) {
+    var out = [];
+    Object.keys(D.ZAPHYRE_SPELLS).forEach(function (id) {
+      var sp = D.SPELL[id], rec = D.ZAPHYRE_SPELLS[id];
+      if (!sp) return;
+      var a = rec.join(' \xb7 '), b = [sp.time, norm(sp.range), sp.dur].join(' \xb7 ');
+      var same = rec[0] === sp.time && norm(rec[1]) === norm(sp.range) && norm(rec[2]) === norm(sp.dur);
+      out.push({ n: sp.n, rec: a, comp: same ? a : b, ok: same });
+    });
+    return out;
+  }
+  var PB = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+  function originCheck(c, bg) {
+    var first = D.CLASSES[c.classes[0].id], race = first.asi || {};
+    var keys = D.ABILITIES.map(function (a) { return a.k; }), A = bg.abilities, splits = [];
+    A.forEach(function (x) { A.forEach(function (y) { if (x !== y) { var o = {}; o[x] = 2; o[y] = 1; splits.push(o); } }); });
+    var all = {}; A.forEach(function (x) { all[x] = 1; }); splits.push(all);
+    var res = { over: [], method: '', split: '', base: '', rolled: null, low: '' };
+    keys.forEach(function (k) { if (c.abilities[k] > 20) res.over.push(k.toUpperCase() + ' ' + c.abilities[k]); });
+    function label(o) { return Object.keys(o).map(function (k) { return '+' + o[k] + ' ' + k.toUpperCase(); }).join(' '); }
+    var lowK = keys.filter(function (k) { return c.abilities[k] - (race[k] || 0) < 8 && A.indexOf(k) < 0; });
+    if (lowK.length) res.low = lowK.map(function (k) { return k.toUpperCase() + ' ' + c.abilities[k]; }).join(', ');
+    splits.forEach(function (o) {
+      var base = keys.map(function (k) { return c.abilities[k] - (race[k] || 0) - (o[k] || 0); });
+      var txt = keys.map(function (k, i) { return k.toUpperCase() + ' ' + base[i]; }).join(', ');
+      var sorted = base.slice().sort(function (x, y) { return y - x; }).join(',');
+      if (!res.method && sorted === '15,14,13,12,10,8') { res.method = 'the standard array'; res.split = label(o); res.base = txt; }
+      var cost = base.reduce(function (s2, v) { return PB[v] === undefined ? Infinity : s2 + PB[v]; }, 0);
+      if (!res.method && cost <= 27) { res.method = '27-point buy (' + cost + ' points)'; res.split = label(o); res.base = txt; }
+      if (!res.rolled && base.every(function (v) { return v >= 3 && v <= 18; })) res.rolled = { split: label(o), base: txt };
+    });
+    return res;
+  }
+
+  window.Rules = { mod: mod, sign: sign, derive: derive, features: features, validate: validate, audit: audit, ordinal: ordinal, lvlOf: lvlOf, casterOf: casterOf };
 })();

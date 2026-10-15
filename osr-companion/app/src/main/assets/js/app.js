@@ -81,7 +81,7 @@
     return C.classes.filter(function (k) { return k.level > 0; }).map(function (k) {
       var cl = D.CLASSES[k.id], sub = k.sub && cl.subs[k.sub] ? ' (' + cl.subs[k.sub].n.replace(' Domain', '').replace('Path of the ', '').replace('Path of ', '') + ')' : '';
       return cl.n + ' ' + k.level + sub;
-    }).join(' · ');
+    }).join(' \xb7 ');
   }
 
   function applyTheme() {
@@ -91,7 +91,7 @@
 
   // ---------------------------------------------------------------- dice parsing & rolling
   function parseDice(expr) {
-    // "2d6+1d4+3" → { groups:[{n,s}], mod }
+    // "2d6+1d4+3" \u2192 { groups:[{n,s}], mod }
     var out = { groups: [], mod: 0 };
     String(expr).replace(/\s+/g, '').replace(/([+-]?)(\d*)d(\d+|%)|([+-]?)(\d+)/gi, function (m, sg, n, s, sg2, k) {
       if (s) {
@@ -104,7 +104,7 @@
   }
   function diceText(groups, mod) {
     var t = groups.map(function (g) { return g.n + 'd' + g.s; }).join('+');
-    if (mod) t += (mod > 0 ? '+' : '−') + Math.abs(mod);
+    if (mod) t += (mod > 0 ? '+' : '\u2212') + Math.abs(mod);
     return t || String(mod || 0);
   }
   function addDice(expr, extra, times) {
@@ -131,7 +131,8 @@
       if (b !== null) parts.push({ kind: 'd20', label: String(b), value: b, s: 20, drop: !useB });
       var keep = useB ? b : a;
       natural = keep;
-      total = keep + (spec.mod || 0);
+      spec.exhPen = (C.exhaustion | 0) * 2;
+      total = keep + (spec.mod || 0) - spec.exhPen;
       spec.modeUsed = m;
     } else {
       var p = parseDice(spec.expr || '');
@@ -190,16 +191,17 @@
     if (spec.dc && spec.type === 'test') flag += total >= spec.dc ? ' <span class="flag okf">SUCCESS</span>' : ' <span class="flag fumble">FAIL</span>';
     var chips = info.parts.filter(function (p) { return !p.hidden; }).map(function (p) {
       var cls = p.drop ? ' drop' : p.value === p.s ? ' max' : p.value === 1 ? ' min' : '';
-      return '<span class="die-chip' + cls + '">' + (p.neg ? '−' : '') + p.value + '<small>d' + (p.s === 100 ? '%' : p.s) + '</small></span>';
+      return '<span class="die-chip' + cls + '">' + (p.neg ? '\u2212' : '') + p.value + '<small>d' + (p.s === 100 ? '%' : p.s) + '</small></span>';
     }).join('');
     var modv = spec.type === 'test' ? (spec.mod || 0) : (parseDice(spec.expr || '').mod + (spec.mod || 0));
-    if (modv) chips += '<span>' + (modv > 0 ? '+ ' : '− ') + Math.abs(modv) + '</span>';
-    var sub = [spec.sub, spec.modeUsed === 'adv' ? 'Advantage' : spec.modeUsed === 'dis' ? 'Disadvantage' : ''].filter(Boolean).join(' · ');
+    if (modv) chips += '<span>' + (modv > 0 ? '+ ' : '\u2212 ') + Math.abs(modv) + '</span>';
+    if (spec.type === 'test' && spec.exhPen) chips += '<span style="color:var(--red)">\u2212 ' + spec.exhPen + ' exhaustion</span>';
+    var sub = [spec.sub, spec.modeUsed === 'adv' ? 'Advantage' : spec.modeUsed === 'dis' ? 'Disadvantage' : ''].filter(Boolean).join(' \xb7 ');
     var acts = [];
     if (spec.next) acts.push('<button class="btn red" data-a="rnext">' + ic('sword') + (nat === 20 ? 'Crit damage' : 'Roll damage') + '</button>');
     if (spec.type === 'heal' && !spec.auto) acts.push('<button class="btn green" data-a="rheal" data-v="' + total + '">' + ic('heart') + 'Heal me +' + total + '</button>');
     if (spec.type === 'temp') acts.push('<button class="btn soft" data-a="rtemp" data-v="' + total + '">' + ic('shield') + 'Gain ' + total + ' temp HP</button>');
-    if (spec.type === 'test' && C.acu > 0 && !spec.noHeroic) acts.push('<button class="btn soft" data-a="rheroic">' + ic('star') + 'Reroll · 1 Acumen</button>');
+    if (spec.type === 'test' && C.acu > 0 && !spec.noHeroic) acts.push('<button class="btn soft" data-a="rheroic">' + ic('star') + 'Reroll \xb7 1 Acumen</button>');
     acts.push('<button class="btn" data-a="ragain">' + ic('refresh') + 'Again</button>');
     acts.push('<button class="btn accent" data-a="rclose">Done</button>');
     card.innerHTML = '<div class="lbl">' + ic(spec.icon || 'die') + '<span>' + esc(spec.label) + '</span><small>' + esc(sub) + '</small></div>' +
@@ -239,9 +241,9 @@
     var over = left - h;
     commit();
     var s = 'Took ' + n + (msg.length ? ' (' + msg.join(', ') + ')' : '');
-    if (C.hp.cur === 0 && over >= C.hp.max) s += ' — massive damage: instant death!';
-    else if (C.hp.cur === 0) s += ' — down! Make death saves.';
-    if (C.concentration && C.hp.cur > 0) s += ' Concentration DC ' + Math.max(10, Math.floor(n / 2)) + '.';
+    if (C.hp.cur === 0 && over >= C.hp.max) s += ' \u2014 massive damage: instant death!';
+    else if (C.hp.cur === 0) s += ' \u2014 down! Make death saves.';
+    if (C.concentration && C.hp.cur > 0) s += ' Concentration DC ' + Math.min(30, Math.max(10, Math.floor(n / 2))) + '.';
     toast(s);
     haptic(2);
   }
@@ -254,13 +256,12 @@
   }
   function addTemp(n) {
     if (n > C.hp.temp) { C.hp.temp = n; commit(); toast(n + ' temporary HP'); }
-    else toast('Temp HP don’t stack — kept ' + C.hp.temp);
+    else toast('Temp HP don\u2019t stack \u2014 kept ' + C.hp.temp);
   }
   function longRest() {
     Dv = R.derive(C);
     C.hp.cur = C.hp.max; C.hp.temp = 0; C.vit = Dv.vitMax; C.acu = Dv.acuMax;
-    var regain = Math.max(1, Math.floor(Dv.level / 2));
-    C.used = { slots: {}, pact: 0, bardic: 0, cd: 0, eyes: 0, hd: Math.max(0, (C.used.hd || 0) - regain), legacy: {} };
+    C.used = { slots: {}, pact: 0, bardic: 0, cd: 0, eyes: 0, hd: 0, legacy: {}, mi: 0 };
     C.death = { s: 0, f: 0 };
     C.exhaustion = Math.max(0, (C.exhaustion || 0) - 1);
     C.concentration = '';
@@ -295,6 +296,10 @@
       Dv.domainSpells.forEach(function (id) { if (D.SPELL[id]) out.push({ s: D.SPELL[id], src: 'cleric', free: 'Domain' }); });
       C.spells.cleric.prepared.forEach(function (id) { if (D.SPELL[id] && Dv.domainSpells.indexOf(id) < 0) out.push({ s: D.SPELL[id], src: 'cleric' }); });
     }
+    if (Dv.mi) {
+      (C.magicInitiate.cantrips || []).forEach(function (id) { if (D.SPELL[id]) out.push({ s: D.SPELL[id], src: 'mi', free: 'Magic Initiate' }); });
+      if (D.SPELL[C.magicInitiate.spell]) out.push({ s: D.SPELL[C.magicInitiate.spell], src: 'mi', free: 'Magic Initiate', mi: true });
+    }
     return out;
   }
   function spellDamage(s, src, slotLvl) {
@@ -309,19 +314,20 @@
     var s = e.s, opts = [];
     if (e.legacy) {
       var used = C.used.legacy[s.id];
-      opts.push({ key: 'legacy', n: 'Infernal Legacy · free', sub: used ? 'Used — recovers on a long rest' : 'Once per long rest, as ' + ord(e.legacy.at) + ' level', lvl: e.legacy.at, left: used ? 0 : 1 });
+      opts.push({ key: 'legacy', n: 'Infernal Legacy \xb7 free', sub: used ? 'Used \u2014 recovers on a long rest' : 'Once per long rest, as ' + ord(e.legacy.at) + ' level', lvl: e.legacy.at, left: used ? 0 : 1 });
       return opts;
     }
     Dv.slots.forEach(function (n, i) {
       var lvl = i + 1;
       if (lvl < s.lvl) return;
       var left = n - (C.used.slots[lvl] || 0);
-      opts.push({ key: 'slot' + lvl, n: 'Spell slot · ' + ord(lvl), sub: left + ' of ' + n + ' left · long rest', lvl: lvl, left: left });
+      opts.push({ key: 'slot' + lvl, n: 'Spell slot \xb7 ' + ord(lvl), sub: left + ' of ' + n + ' left \xb7 long rest', lvl: lvl, left: left });
     });
     if (Dv.pact && Dv.pact.lvl >= s.lvl) {
       var pl = Dv.pact.n - (C.used.pact || 0);
-      opts.push({ key: 'pact', n: 'Pact slot · ' + ord(Dv.pact.lvl), sub: pl + ' of ' + Dv.pact.n + ' left · short rest', lvl: Dv.pact.lvl, left: pl });
+      opts.push({ key: 'pact', n: 'Pact slot \xb7 ' + ord(Dv.pact.lvl), sub: pl + ' of ' + Dv.pact.n + ' left \xb7 short rest', lvl: Dv.pact.lvl, left: pl });
     }
+    if (e.mi) opts.unshift({ key: 'mifree', n: 'Magic Initiate \xb7 free', sub: C.used.mi ? 'Used \u2014 recovers on a long rest' : 'Once per long rest without a slot', lvl: 1, left: C.used.mi ? 0 : 1 });
     if (s.rit) opts.push({ key: 'ritual', n: 'As a ritual', sub: '+10 minutes, no slot', lvl: s.lvl, left: 1 });
     // pact-magic spells prefer pact slots: put them first
     if (e.src === 'tiefling') opts.sort(function (a, b) { return (b.key === 'pact') - (a.key === 'pact'); });
@@ -332,16 +338,17 @@
     if (!o || o.left <= 0) { toast('No slot left'); return; }
     if (key === 'pact') C.used.pact = (C.used.pact || 0) + 1;
     else if (key === 'legacy') C.used.legacy[s.id] = 1;
+    else if (key === 'mifree') C.used.mi = 1;
     else if (key.indexOf('slot') === 0) C.used.slots[o.lvl] = (C.used.slots[o.lvl] || 0) + 1;
     if (s.conc) C.concentration = s.id;
     commit();
     closeSheet();
-    toast('Cast ' + s.n + (key === 'ritual' ? ' as a ritual' : ' at ' + ord(o.lvl) + ' level') + (s.conc ? ' — concentrating' : ''));
+    toast('Cast ' + s.n + (key === 'ritual' ? ' as a ritual' : ' at ' + ord(o.lvl) + ' level') + (s.conc ? ' \u2014 concentrating' : ''));
     var ca = casterFor(e.src);
     if (s.temp) addTemp(s.temp * o.lvl);
     else if (s.heal) setTimeout(function () { roll({ label: s.n, sub: ord(o.lvl) + ' level', type: 'heal', expr: spellDamage(s, e.src, o.lvl), icon: 'heart' }); }, 260);
-    else if (s.atk) setTimeout(function () { testRoll(s.n + ' · spell attack', ca.atk, { icon: 'spark', next: { label: s.n + ' · damage', type: 'dmg', expr: spellDamage(s, e.src, o.lvl), sub: s.dt, icon: 'spark' } }); }, 260);
-    else if (s.dmg && !s.bonusDie) setTimeout(function () { roll({ label: s.n, sub: (s.save ? 'DC ' + ca.dc + ' ' + s.save + ' · ' : '') + (s.dt || ''), type: 'dmg', expr: spellDamage(s, e.src, o.lvl), icon: 'spark' }); }, 260);
+    else if (s.atk) setTimeout(function () { testRoll(s.n + ' \xb7 spell attack', ca.atk, { icon: 'spark', next: { label: s.n + ' \xb7 damage', type: 'dmg', expr: spellDamage(s, e.src, o.lvl), sub: s.dt, icon: 'spark' } }); }, 260);
+    else if (s.dmg && !s.bonusDie) setTimeout(function () { roll({ label: s.n, sub: (s.save ? 'DC ' + ca.dc + ' ' + s.save + ' \xb7 ' : '') + (s.dt || ''), type: 'dmg', expr: spellDamage(s, e.src, o.lvl), icon: 'spark' }); }, 260);
   }
 
   // ---------------------------------------------------------------- sheets
@@ -378,12 +385,12 @@
     var preview = '';
     if (kind === 'dmg' && n) {
       var t = Math.min(C.hp.temp, n), v = Math.min(C.vit, n - t), h = Math.min(C.hp.cur, n - t - v);
-      preview = [t ? t + ' temp' : '', v ? v + ' Vitality' : '', h ? h + ' HP' : ''].filter(Boolean).join(' → ') || 'No effect';
-    } else if (kind === 'heal' && n) preview = 'HP ' + C.hp.cur + ' → ' + Math.min(C.hp.max, C.hp.cur + n);
+      preview = [t ? t + ' temp' : '', v ? v + ' Vitality' : '', h ? h + ' HP' : ''].filter(Boolean).join(' \u2192 ') || 'No effect';
+    } else if (kind === 'heal' && n) preview = 'HP ' + C.hp.cur + ' \u2192 ' + Math.min(C.hp.max, C.hp.cur + n);
     else if (kind === 'temp' && n) preview = n > C.hp.temp ? 'Replaces ' + C.hp.temp + ' temp HP' : 'Lower than current ' + C.hp.temp + ' temp HP';
-    var keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⌫'].map(function (k) { return '<button data-a="pad" data-k="' + k + '">' + k + '</button>'; }).join('');
+    var keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '\u232b'].map(function (k) { return '<button data-a="pad" data-k="' + k + '">' + k + '</button>'; }).join('');
     return '<h3>' + (kind === 'dmg' ? 'Take damage' : kind === 'heal' ? 'Heal' : 'Temporary HP') + '</h3>' +
-      '<p class="lead">' + (kind === 'dmg' ? 'Damage comes off temporary HP first, then Vitality, then hit points.' : kind === 'heal' ? 'Restores hit points up to your maximum of ' + C.hp.max + '.' : 'Temporary HP don’t stack; the higher value wins.') + '</p>' +
+      '<p class="lead">' + (kind === 'dmg' ? 'Damage comes off temporary HP first, then Vitality, then hit points.' : kind === 'heal' ? 'Restores hit points up to your maximum of ' + C.hp.max + '.' : 'Temporary HP don\u2019t stack; the higher value wins.') + '</p>' +
       '<div class="seg" style="margin-bottom:8px">' + ['dmg', 'heal', 'temp'].map(function (k) { return '<button data-a="hpkind" data-k="' + k + '" class="' + (k === kind ? 'on' : '') + '">' + (k === 'dmg' ? 'Damage' : k === 'heal' ? 'Heal' : 'Temp HP') + '</button>'; }).join('') + '</div>' +
       '<div class="amount">' + (n || 0) + '</div><div class="amount-note">' + esc(preview) + '</div>' +
       '<div class="keypad">' + keys + '</div>' +
@@ -396,10 +403,10 @@
     var left = Dv.hitDice - (C.used.hd || 0);
     return '<h3>Rest</h3><p class="lead">Short rests spend hit dice and refresh pact magic' + (Dv.cd ? ' and Channel Divinity' : '') + '. A long rest restores everything.</p>' +
       '<div class="card" style="background:var(--surface-2);box-shadow:none">' +
-      '<div class="frow"><div class="grow"><b>Hit dice</b><small>' + left + ' of ' + Dv.hitDice + 'd8 left · each heals 1d8 ' + sign(Dv.mod.con) + '</small></div>' +
+      '<div class="frow"><div class="grow"><b>Hit dice</b><small>' + left + ' of ' + Dv.hitDice + 'd8 left \xb7 each heals 1d8 ' + sign(Dv.mod.con) + '</small></div>' +
       '<button class="btn green" data-a="spendhd" ' + (left > 0 && C.hp.cur < C.hp.max ? '' : 'disabled') + '>' + ic('heart') + 'Spend 1</button></div></div>' +
       '<div class="two"><button class="btn soft" data-a="short">' + ic('moon') + 'Short rest</button><button class="btn accent" data-a="long">' + ic('bed') + 'Long rest</button></div>' +
-      '<p class="note">Long rest: full HP, Vitality ' + Dv.vitMax + ', Acumen ' + Dv.acuMax + ', all slots, Bardic Inspiration, Eyes of Night, Infernal Legacy, ' + Math.max(1, Math.floor(Dv.level / 2)) + ' hit die back, −1 exhaustion.</p>';
+      '<p class="note">Long rest: full HP, Vitality ' + Dv.vitMax + ', Acumen ' + Dv.acuMax + ', all slots, Bardic Inspiration, Eyes of Night, Infernal Legacy, Magic Initiate, all hit dice (2024), \u22121 exhaustion.</p>';
   }
 
   // dice tray
@@ -414,7 +421,7 @@
     var any = Object.keys(pool).some(function (k) { return pool[k]; });
     return '<h3>Dice tray</h3><p class="lead">Tap dice to build a pool, or tap a single die and roll straight away.</p>' +
       '<div class="tray">' + btns + '</div>' +
-      '<div class="frow"><div class="grow"><b>Modifier</b></div><div class="stepper"><button data-a="poolmod" data-d="-1">−</button><output>' + sign(poolMod) + '</output><button data-a="poolmod" data-d="1">+</button></div></div>' +
+      '<div class="frow"><div class="grow"><b>Modifier</b></div><div class="stepper"><button data-a="poolmod" data-d="-1">\u2212</button><output>' + sign(poolMod) + '</output><button data-a="poolmod" data-d="1">+</button></div></div>' +
       '<div class="two" style="margin-top:10px"><button class="btn soft" data-a="go" data-p="dice">' + ic('grid') + 'Dice lab</button>' +
       '<button class="btn accent" data-a="poolroll" ' + (any ? '' : 'disabled') + '>' + ic('die') + 'Roll ' + (any ? esc(expr) : '') + '</button></div>';
   }
@@ -465,9 +472,9 @@
       '<button class="ibtn" data-a="rest" aria-label="Rest">' + ic('moon') + '</button></div>';
     h += '<div class="wrap">';
     // hero
-    h += '<section class="hero"><div class="hero-top"><div class="sigil">' + sigil() + '</div><div style="min-width:0"><h1>' + esc(C.name) + '</h1><p class="cls">' + esc(classLine()) + ' · Level ' + d.level + '</p></div></div>' +
+    h += '<section class="hero"><div class="hero-top"><div class="sigil">' + sigil() + '</div><div style="min-width:0"><h1>' + esc(C.name) + '</h1><p class="cls">' + esc(classLine()) + ' \xb7 Level ' + d.level + '</p></div></div>' +
       '<div class="chips"><span class="chip">' + esc(C.alignment) + '</span><span class="chip">' + esc(C.ancestry) + '</span><span class="chip">' + esc(C.background) + '</span><span class="chip">' + esc(C.size) + '</span>' + (C.player ? '<span class="chip">Player: ' + esc(C.player) + '</span>' : '') + '</div>' +
-      '<button class="vbadge" data-a="go" data-p="check"><span class="dot" style="background:' + vdot[0] + '">' + ic(vdot[1]) + '</span><span class="grow"><b>Rules check</b><small>' + vc.error + ' errors · ' + vc.warn + ' warnings · ' + vc.ok + ' passed</small></span>' + ic('chev') + '</button></section>';
+      '<button class="vbadge" data-a="go" data-p="check"><span class="dot" style="background:' + vdot[0] + '">' + ic(vdot[1]) + '</span><span class="grow"><b>Rules check</b><small>' + vc.error + ' errors \xb7 ' + vc.warn + ' warnings \xb7 ' + vc.ok + ' passed</small></span>' + ic('chev') + '</button></section>';
     // vitals
     h += '<section class="card"><div class="vitals"><div class="ring" data-a="hp" data-k="dmg"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52" fill="none" stroke-width="11"/>' +
       '<circle class="val" cx="60" cy="60" r="52" fill="none" stroke-width="11" stroke-linecap="round" style="stroke:' + hpColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + circ * (1 - pct) + '"/>' +
@@ -478,7 +485,7 @@
       '<div class="two"><button class="mini" data-a="acu" data-d="-1">' + ic('star') + 'Spend</button><button class="mini" data-a="acu" data-d="1">' + ic('plus') + 'Regain</button></div></div></div>' +
       '<div class="btnrow"><button class="btn red" data-a="hp" data-k="dmg">' + ic('sword') + 'Damage</button><button class="btn green" data-a="hp" data-k="heal">' + ic('heart') + 'Heal</button><button class="btn" data-a="rest">' + ic('moon') + 'Rest</button></div>';
     if (C.concentration && D.SPELL[C.concentration]) h += '<div class="banner conc">' + ic('eye') + '<span class="grow">Concentrating on <b>' + esc(D.SPELL[C.concentration].n) + '</b></span><button data-a="concroll">Check</button><button data-a="concend">' + ic('x') + '</button></div>';
-    if (C.hp.cur === 0) h += '<div class="banner down">' + ic('skull') + '<span class="grow">At 0 HP — ' + C.death.s + ' successes, ' + C.death.f + ' failures</span><button data-a="deathroll">Death save</button></div>';
+    if (C.hp.cur === 0) h += '<div class="banner down">' + ic('skull') + '<span class="grow">At 0 HP \u2014 ' + C.death.s + ' successes, ' + C.death.f + ' failures</span><button data-a="deathroll">Death save</button></div>';
     h += '</section>';
     // stats
     h += '<div class="stats"><div class="stat ac"><b>' + d.ac + '</b><span>AC</span></div>' +
@@ -502,7 +509,7 @@
       best.slice(0, 3).concat(best.slice(-2)).map(saveRow).join('') + '</div></section>';
     // explore
     h += '<div class="sec-title">Explore</div><div class="grid2">' + exploreTiles() + '</div>';
-    h += '<p class="note" style="text-align:center;margin:22px 0 0">OSR 5th Edition · 5.5e homebrew · Campaign ' + esc(C.campaign) + ' · DM ' + esc(C.dm) + '</p>';
+    h += '<p class="note" style="text-align:center;margin:22px 0 0">OSR 5th Edition \xb7 5.5e homebrew \xb7 Campaign ' + esc(C.campaign) + ' \xb7 DM ' + esc(C.dm) + '</p>';
     h += '</div>';
     return h;
   }
@@ -516,14 +523,14 @@
     var d = Dv, h = '';
     d.slots.forEach(function (n, i) {
       var l = i + 1;
-      h += '<div class="res"><div class="nm"><b>Spell slots · ' + ord(l) + '</b><small>Cleric · long rest</small></div>' + pipRow(n, C.used.slots[l] || 0, 'pipslot" data-l="' + l) + '</div>';
+      h += '<div class="res"><div class="nm"><b>Spell slots \xb7 ' + ord(l) + '</b><small>Cleric \xb7 long rest</small></div>' + pipRow(n, C.used.slots[l] || 0, 'pipslot" data-l="' + l) + '</div>';
     });
-    if (d.pact) h += '<div class="res"><div class="nm"><b>Pact slot · ' + ord(d.pact.lvl) + '</b><small>Tiefling · short rest</small></div>' + pipRow(d.pact.n, C.used.pact || 0, 'pippact', ' dia') + '</div>';
-    if (d.bardic) h += '<div class="res"><div class="nm"><b>Bardic Inspiration</b><small>d' + d.bardic.die + ' · ' + (d.bardic.short ? 'short' : 'long') + ' rest</small></div><button class="mini gold" data-a="bardic">' + ic('music') + 'd' + d.bardic.die + '</button>' + pipRow(d.bardic.uses, C.used.bardic || 0, 'pipbardic', ' gold') + '</div>';
-    if (d.cd) h += '<div class="res"><div class="nm"><b>Channel Divinity</b><small>Turn Undead · ' + (d.twilight ? 'Twilight Sanctuary' : '') + '</small></div>' + (d.twilight ? '<button class="mini" data-a="sanctuary">' + ic('moon') + 'Sanctuary</button>' : '') + pipRow(d.cd, C.used.cd || 0, 'pipcd', ' gold') + '</div>';
-    if (d.twilight) h += '<div class="res"><div class="nm"><b>Eyes of Night · share</b><small>Darkvision 300 ft · ' + Math.max(1, d.mod.wis) + ' creatures</small></div>' + pipRow(1, C.used.eyes || 0, 'pipeyes') + '</div>';
+    if (d.pact) h += '<div class="res"><div class="nm"><b>Pact slot \xb7 ' + ord(d.pact.lvl) + '</b><small>Tiefling \xb7 short rest</small></div>' + pipRow(d.pact.n, C.used.pact || 0, 'pippact', ' dia') + '</div>';
+    if (d.bardic) h += '<div class="res"><div class="nm"><b>Bardic Inspiration</b><small>d' + d.bardic.die + ' \xb7 ' + (d.bardic.short ? 'short' : 'long') + ' rest</small></div><button class="mini gold" data-a="bardic">' + ic('music') + 'd' + d.bardic.die + '</button>' + pipRow(d.bardic.uses, C.used.bardic || 0, 'pipbardic', ' gold') + '</div>';
+    if (d.cd) h += '<div class="res"><div class="nm"><b>Channel Divinity</b><small>Turn Undead \xb7 ' + (d.twilight ? 'Twilight Sanctuary' : '') + '</small></div>' + (d.twilight ? '<button class="mini" data-a="sanctuary">' + ic('moon') + 'Sanctuary</button>' : '') + pipRow(d.cd, C.used.cd || 0, 'pipcd', ' gold') + '</div>';
+    if (d.twilight) h += '<div class="res"><div class="nm"><b>Eyes of Night \xb7 share</b><small>Darkvision 300 ft \xb7 ' + Math.max(1, d.mod.wis) + ' creatures</small></div>' + pipRow(1, C.used.eyes || 0, 'pipeyes') + '</div>';
     d.legacy.forEach(function (l) {
-      h += '<div class="res"><div class="nm"><b>' + esc(l.n) + '</b><small>Infernal Legacy · long rest</small></div>' + pipRow(1, C.used.legacy[l.id] ? 1 : 0, 'piplegacy" data-id="' + l.id) + '</div>';
+      h += '<div class="res"><div class="nm"><b>' + esc(l.n) + '</b><small>Infernal Legacy \xb7 long rest</small></div>' + pipRow(1, C.used.legacy[l.id] ? 1 : 0, 'piplegacy" data-id="' + l.id) + '</div>';
     });
     return h || '<p class="empty">No limited resources.</p>';
   }
@@ -531,14 +538,14 @@
   function actionsHtml() {
     var d = Dv, h = '';
     d.weapons.forEach(function (w, i) {
-      h += '<div class="row"><span class="ic red">' + ic('sword') + '</span><span class="tx"><b>' + esc(w.name) + '</b><small>' + esc(w.range + ' · ' + w.type + (w.props ? ' · ' + w.props : '')) + '</small></span>' +
+      h += '<div class="row"><span class="ic red">' + ic('sword') + '</span><span class="tx"><b>' + esc(w.name) + '</b><small>' + esc(w.range + ' \xb7 ' + w.type + (w.props ? ' \xb7 ' + w.props : '')) + '</small></span>' +
         '<button class="pill" data-a="watk" data-i="' + i + '">' + sign(w.hit) + '</button><button class="pill dmg" data-a="wdmg" data-i="' + i + '">' + w.die + (w.dmgMod ? sign(w.dmgMod) : '') + '</button></div>';
     });
     spellEntries().forEach(function (e, idx) {
       var s = e.s;
       if (s.lvl !== 0 || !s.dmg || s.bonusDie) return;
       var ca = casterFor(e.src), dm = spellDamage(s, e.src, 0);
-      h += '<div class="row"><span class="ic ' + (e.src === 'tiefling' ? 'red' : 'gold') + '">' + ic('spark') + '</span><span class="tx"><b>' + esc(s.n) + ' <span class="tag ' + (e.src === 'tiefling' ? 'tfl' : 'clr') + '">' + ca.tag + '</span></b><small>' + esc(s.range + ' · ' + s.dt + (s.beams && d.cantripDice > 1 ? ' · ' + d.cantripDice + ' beams' : '')) + '</small></span>' +
+      h += '<div class="row"><span class="ic ' + (e.src === 'tiefling' ? 'red' : 'gold') + '">' + ic('spark') + '</span><span class="tx"><b>' + esc(s.n) + ' <span class="tag ' + (e.src === 'tiefling' ? 'tfl' : e.src === 'mi' ? 'c' : 'clr') + '">' + ca.tag + '</span></b><small>' + esc(s.range + ' \xb7 ' + s.dt + (s.beams && d.cantripDice > 1 ? ' \xb7 ' + d.cantripDice + ' beams' : '')) + '</small></span>' +
         (s.atk ? '<button class="pill" data-a="satk" data-x="' + idx + '">' + sign(ca.atk) + '</button>' : '<span class="pill save">' + s.save + ' ' + ca.dc + '</span>') +
         '<button class="pill dmg" data-a="sdmg" data-x="' + idx + '">' + (s.beams ? '1d10' : dm) + '</button></div>';
     });
@@ -548,7 +555,7 @@
 
   function saveRow(s) {
     var v = Dv.saves[s.c], pf = s.a.filter(function (a) { return C.saveProf.indexOf(a) >= 0; }).length;
-    return '<button class="row" data-a="save" data-k="' + s.c + '"><span class="ic gold" style="font-weight:800;font-size:13px">' + s.c + '</span><span class="tx"><b>' + esc(s.n) + (pf ? ' <span class="tag clr">' + (pf === 2 ? 'PROF ×2' : 'PROF') + '</span>' : '') + '</b><small>' + s.a.map(function (a) { return abilName(a).s; }).join(' + ') + ' · ' + esc(s.d) + '</small></span><span class="val">' + sign(v) + '</span></button>';
+    return '<button class="row" data-a="save" data-k="' + s.c + '"><span class="ic gold" style="font-weight:800;font-size:13px">' + s.c + '</span><span class="tx"><b>' + esc(s.n) + (pf ? ' <span class="tag clr">' + (pf === 2 ? 'PROF \xd72' : 'PROF') + '</span>' : '') + '</b><small>' + s.a.map(function (a) { return abilName(a).s; }).join(' + ') + ' \xb7 ' + esc(s.d) + '</small></span><span class="val">' + sign(v) + '</span></button>';
   }
 
   function exploreTiles() {
@@ -556,14 +563,14 @@
     var slotsLeft = d.slots.reduce(function (s, n, i) { return s + n - (C.used.slots[i + 1] || 0); }, 0) + (d.pact ? d.pact.n - (C.used.pact || 0) : 0);
     var sum = {
       saves: (function () { var b = D.SAVES.slice().sort(function (x, y) { return d.saves[y.c] - d.saves[x.c]; })[0]; return 'Best: ' + b.n + ' ' + sign(d.saves[b.c]); })(),
-      skills: Object.keys(C.skills).filter(function (k) { return C.skills[k]; }).length + ' proficient · Passive ' + d.passive.per,
-      combat: (C.conditions.length ? C.conditions.join(', ') : 'No conditions') + (C.exhaustion ? ' · Exh ' + C.exhaustion : ''),
-      spells: slotsLeft + ' slots ready · DC ' + d.casters.map(function (c) { return c.dc; }).join('/'),
+      skills: Object.keys(C.skills).filter(function (k) { return C.skills[k]; }).length + ' proficient \xb7 Passive ' + d.passive.per,
+      combat: (C.conditions.length ? C.conditions.join(', ') : 'No conditions') + (C.exhaustion ? ' \xb7 Exh ' + C.exhaustion : ''),
+      spells: slotsLeft + ' slots ready \xb7 DC ' + d.casters.map(function (c) { return c.dc; }).join('/'),
       features: R.features(C, d).length + ' features',
-      gear: d.weight + ' lb · ' + (d.enc === 'ok' ? 'Unencumbered' : d.enc === 'enc' ? 'Encumbered' : 'Heavily loaded'),
-      check: vc.error + ' errors · ' + vc.warn + ' warnings',
+      gear: d.weight + ' lb \xb7 ' + (d.enc === 'ok' ? 'Unencumbered' : d.enc === 'enc' ? 'Encumbered' : 'Heavily loaded'),
+      check: vc.error + ' errors \xb7 ' + vc.warn + ' warnings',
       notes: 'Traits, ideals, bonds',
-      dice: LOG.length ? 'Last: ' + LOG[0].total + ' · ' + LOG[0].label : 'Pool builder & history',
+      dice: LOG.length ? 'Last: ' + LOG[0].total + ' \xb7 ' + LOG[0].label : 'Pool builder & history',
       edit: 'Scores, levels, gear',
       settings: 'Theme, dice, backup'
     };
@@ -593,10 +600,10 @@
     skills: function () {
       var d = Dv;
       var h = '<div class="stats" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>' + d.passive.per + '</b><span>Perception</span></div><div class="stat"><b>' + d.passive.ins + '</b><span>Insight</span></div><div class="stat"><b>' + d.passive.inv + '</b><span>Investigation</span></div></div>';
-      h += '<div class="card"><div class="card-h"><h3>' + (skillEdit ? 'Tap to cycle: none → proficient → expertise' : 'Tap a skill to roll') + '</h3><button class="link" data-a="skilledit">' + (skillEdit ? 'Done' : 'Edit') + '</button></div><div class="rows">';
+      h += '<div class="card"><div class="card-h"><h3>' + (skillEdit ? 'Tap to cycle: none \u2192 proficient \u2192 expertise' : 'Tap a skill to roll') + '</h3><button class="link" data-a="skilledit">' + (skillEdit ? 'Done' : 'Edit') + '</button></div><div class="rows">';
       D.SKILLS.forEach(function (s) {
         var p = C.skills[s.k] ? 1 : 0, ex = C.expertise.indexOf(s.k) >= 0;
-        var mark = ex ? '<span class="tag free">E</span>' : p ? '<span class="tag clr">P</span>' : d.joat ? '<span class="tag">½P</span>' : '';
+        var mark = ex ? '<span class="tag free">E</span>' : p ? '<span class="tag clr">P</span>' : d.joat ? '<span class="tag">\xbdP</span>' : '';
         h += '<button class="row" data-a="' + (skillEdit ? 'skillcycle' : 'skill') + '" data-k="' + s.k + '"><span class="ic' + (ex ? '' : p ? ' gold' : ' blue') + '" style="font-size:11px;font-weight:800">' + abilName(s.a).s + '</span><span class="tx"><b>' + s.n + ' ' + mark + '</b><small>' + (p || ex ? sourceOfSkill(s.k) : 'Not proficient') + '</small></span><span class="val">' + sign(d.skills[s.k]) + '</span></button>';
       });
       h += '</div></div>';
@@ -607,26 +614,27 @@
       h += '<div class="stats" style="grid-template-columns:repeat(4,1fr)"><div class="stat"><b>' + d.ac + '</b><span>AC</span></div><button class="stat roll" data-a="init"><b>' + sign(d.init) + '</b><span>Init</span></button><div class="stat"><b>' + d.speed + '</b><span>Speed</span></div><div class="stat"><b>1</b><span>Attacks</span></div></div>';
       h += '<div class="card"><div class="card-h"><h3>Weapons & attacks</h3><button class="link" data-a="addweapon">+ Add</button></div><div class="rows">';
       d.weapons.forEach(function (w, i) {
-        h += '<details class="x"><summary><span class="ic red" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--red-soft);color:var(--red)">' + ic('sword') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(w.name) + (w.prof ? '' : ' <span class="tag tfl">NOT PROF</span>') + '</b><small class="muted">' + sign(w.hit) + ' to hit · ' + w.die + (w.dmgMod ? sign(w.dmgMod) : '') + ' ' + w.type + '</small></span>' + ic('chev', 'chev') + '</summary><div class="body">' +
-          '<p>' + esc(w.range) + (w.props ? ' · ' + esc(w.props) : '') + ' · ' + w.cat + ' · ' + w.weight + ' lb<br>Mastery: ' + esc(w.mastery || '—') + ' · Quality: ' + ({ S: 'Shoddy (−1)', C: 'Common', M: 'Masterwork (+1)' })[w.quality] + '</p>' +
+        h += '<details class="x"><summary><span class="ic red" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--red-soft);color:var(--red)">' + ic('sword') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(w.name) + (w.prof ? '' : ' <span class="tag tfl">NOT PROF</span>') + '</b><small class="muted">' + sign(w.hit) + ' to hit \xb7 ' + w.die + (w.dmgMod ? sign(w.dmgMod) : '') + ' ' + w.type + '</small></span>' + ic('chev', 'chev') + '</summary><div class="body">' +
+          '<p>' + esc(w.range) + (w.props ? ' \xb7 ' + esc(w.props) : '') + ' \xb7 ' + w.cat + ' \xb7 ' + w.weight + ' lb<br>Mastery: ' + esc(w.mastery || '\u2014') + ' \xb7 Quality: ' + ({ S: 'Shoddy (\u22121)', C: 'Common', M: 'Masterwork (+1)' })[w.quality] + '</p>' +
           '<div class="acts"><button class="pill" data-a="watk" data-i="' + i + '">Attack ' + sign(w.hit) + '</button><button class="pill dmg" data-a="wdmg" data-i="' + i + '">Damage</button><button class="pill plain" data-a="wqual" data-i="' + i + '">Quality</button><button class="pill plain" data-a="wdel" data-i="' + i + '">' + ic('trash') + '</button></div></div></details>';
       });
-      if (!d.weapons.length) h += '<p class="empty">No weapons.</p>';
+      h += '<div class="row"><span class="ic">' + ic('star') + '</span><span class="tx"><b>Unarmed strike</b><small>Damage ' + d.unarmed.dmg + ' bludgeoning (1 + STR) \xb7 or Grapple / Shove</small></span><button class="pill" data-a="unarmed">' + sign(d.unarmed.hit) + '</button></div>' +
+        '<div class="row"><span class="ic gold" style="font-weight:800;font-size:12px">DC</span><span class="tx"><b>Grapple / Shove DC ' + d.unarmed.dc + '</b><small>8 + STR + prof \xb7 target resists with Clutch of Death (grapple) or Overwhelming Force (shove)</small></span></div>';
       h += '</div><p class="note">Proficient: ' + (d.weaponProf.simple ? 'simple' : '') + (d.weaponProf.martial ? ', martial' : '') + (d.weaponProf.list.length && !d.weaponProf.martial ? ', ' + d.weaponProf.list.join(', ') : '') + ' weapons. Armor: ' + ['light', 'medium', 'heavy', 'shield'].filter(function (a) { return d.armorProf[a]; }).join(', ') + '.</p></div>';
       // conditions
       h += '<div class="card"><div class="card-h"><h3>Conditions</h3></div><div class="chipset">' + D.CONDITIONS.map(function (c) {
         return '<button class="chipbtn ' + (C.conditions.indexOf(c) >= 0 ? 'on' : '') + '" data-a="cond" data-k="' + c + '">' + c + '</button>';
       }).join('') + '</div>';
-      h += '<div class="frow" style="margin-top:10px"><div class="grow"><b>Exhaustion</b><small>' + ['None', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6 — death'][C.exhaustion || 0] + '</small></div><div class="stepper"><button data-a="exh" data-d="-1">−</button><output>' + (C.exhaustion || 0) + '</output><button data-a="exh" data-d="1">+</button></div></div></div>';
+      h += '<div class="frow" style="margin-top:10px"><div class="grow"><b>Exhaustion</b><small>' + (C.exhaustion ? (C.exhaustion >= 6 ? 'Level 6 \u2014 death' : '\u2212' + 2 * C.exhaustion + ' to d20 tests \xb7 \u2212' + 5 * C.exhaustion + ' ft speed') : 'None \xb7 each level: \u22122 d20 tests, \u22125 ft') + '</small></div><div class="stepper"><button data-a="exh" data-d="-1">\u2212</button><output>' + (C.exhaustion || 0) + '</output><button data-a="exh" data-d="1">+</button></div></div></div>';
       // death saves
       h += '<div class="card"><div class="card-h"><h3>Death saves</h3><button class="link" data-a="deathreset">Reset</button></div>' +
         '<div class="frow"><div class="grow"><b>Successes</b></div><div class="dsave">' + [0, 1, 2].map(function (i) { return '<button class="pip s ' + (i < C.death.s ? '' : 'used') + '" data-a="dset" data-k="s" data-i="' + i + '"></button>'; }).join('') + '</div></div>' +
         '<div class="frow"><div class="grow"><b>Failures</b></div><div class="dsave">' + [0, 1, 2].map(function (i) { return '<button class="pip f ' + (i < C.death.f ? '' : 'used') + '" data-a="dset" data-k="f" data-i="' + i + '"></button>'; }).join('') + '</div></div>' +
         '<button class="btn block soft" style="margin-top:8px" data-a="deathroll">' + ic('skull') + 'Roll death save</button></div>';
       // recovery
-      h += '<div class="card"><div class="card-h"><h3>Recovery</h3></div><div class="frow"><div class="grow"><b>Hit dice</b><small>' + (d.hitDice - (C.used.hd || 0)) + ' of ' + d.hitDice + 'd8 · ' + (d.tfl ? d.tfl + 'd8 Tiefling' : '') + (d.clr ? ' + ' + d.clr + 'd8 Cleric' : '') + '</small></div><button class="btn" data-a="rest">' + ic('moon') + 'Rest</button></div>' +
+      h += '<div class="card"><div class="card-h"><h3>Recovery</h3></div><div class="frow"><div class="grow"><b>Hit dice</b><small>' + (d.hitDice - (C.used.hd || 0)) + ' of ' + d.hitDice + 'd8 \xb7 ' + (d.tfl ? d.tfl + 'd8 Tiefling' : '') + (d.clr ? ' + ' + d.clr + 'd8 Cleric' : '') + '</small></div><button class="btn" data-a="rest">' + ic('moon') + 'Rest</button></div>' +
         '<div class="frow"><div class="grow"><b>Resistances</b><small>' + (d.tfl ? 'Fire (Hellish Resistance)' : 'None') + '</small></div></div>' +
-        '<div class="frow"><div class="grow"><b>Senses</b><small>' + (d.twilight ? 'Darkvision 300 ft (Eyes of Night)' : '—') + '</small></div></div></div>';
+        '<div class="frow"><div class="grow"><b>Senses</b><small>' + (d.twilight ? 'Darkvision 300 ft (Eyes of Night)' : '\u2014') + '</small></div></div></div>';
       return h;
     },
     spells: function () {
@@ -645,7 +653,7 @@
           h += '<div class="sec-title" style="margin-top:8px">' + (l === '0' ? 'Cantrips' : ord(+l) + ' level') + '</div>';
           levels[l].forEach(function (pair) { h += spellRow(pair[0], pair[1]); });
         });
-        h += '<p class="note">† always prepared or granted free (domain, racial). Saves use OSR paired-save codes: ' + D.SAVES.map(function (s) { return s.c; }).join(' ') + '.</p>';
+        h += '<p class="note">\u2020 always prepared or granted free (domain, racial). Saves use OSR paired-save codes: ' + D.SAVES.map(function (s) { return s.c; }).join(' ') + '.</p>';
       }
       h += '</div>';
       return h;
@@ -654,11 +662,11 @@
       var d = Dv, f = R.features(C, d), groups = {};
       f.forEach(function (x) { (groups[x.src] = groups[x.src] || []).push(x); });
       var h = '';
-      h += '<div class="card"><div class="card-h"><h3>Ancestry</h3></div><p class="note" style="margin:0">Tiefling race-class: +1 INT, +2 CHA · Medium · speed 30 ft · resistance to fire' + (d.twilight ? ' · darkvision 300 ft (Eyes of Night)' : '') + '.</p></div>';
+      h += '<div class="card"><div class="card-h"><h3>Ancestry</h3></div><p class="note" style="margin:0">Tiefling race-class: +1 INT, +2 CHA \xb7 Medium \xb7 speed 30 ft \xb7 resistance to fire' + (d.twilight ? ' \xb7 darkvision 300 ft (Eyes of Night)' : '') + '.</p></div>';
       Object.keys(groups).forEach(function (g) {
         h += '<div class="sec-title">' + esc(g) + '</div><div class="card"><div class="rows">';
         groups[g].forEach(function (x) {
-          h += '<details class="x"><summary><span class="ic ' + (/Tiefling/.test(g) ? 'red' : /Background/.test(g) ? 'blue' : 'gold') + '" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--surface-2)">' + (x.lvl || '•') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(x.n) + '</b>' + (x.lvl ? '<small class="muted">Level ' + x.lvl + '</small>' : '') + '</span>' + ic('chev', 'chev') + '</summary><div class="body"><p>' + esc(x.text) + '</p>' + featureActions(x) + '</div></details>';
+          h += '<details class="x"><summary><span class="ic ' + (/Tiefling/.test(g) ? 'red' : /Background/.test(g) ? 'blue' : 'gold') + '" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--surface-2)">' + (x.lvl || '\u2022') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(x.n) + '</b>' + (x.lvl ? '<small class="muted">Level ' + x.lvl + '</small>' : '') + '</span>' + ic('chev', 'chev') + '</summary><div class="body"><p>' + esc(x.text) + '</p>' + featureActions(x) + '</div></details>';
         });
         h += '</div></div>';
       });
@@ -671,7 +679,7 @@
       h += '<div class="card"><div class="card-h"><h3>Burden</h3><span style="font-weight:750">' + d.weight + ' lb</span></div>' +
         '<div class="loadbar ' + d.enc + '"><i style="width:' + pct(d.weight) + '%"></i>' +
         '<span class="tick" style="left:' + pct(d.cap.enc) + '%"><span>' + d.cap.enc + ' enc.</span></span><span class="tick" style="left:' + pct(d.cap.heavy) + '%"><span>' + d.cap.heavy + ' heavy</span></span><span class="tick" style="left:99%"><span>' + d.cap.max + '</span></span></div>' +
-        '<p class="note" style="margin:0">' + (d.enc === 'ok' ? 'Unencumbered.' : d.enc === 'enc' ? 'Encumbered: speed −10 ft.' : d.enc === 'heavy' ? 'Heavily encumbered: speed −20 ft, disadvantage on STR/DEX/CON rolls.' : 'Over maximum load.') + ' Push, drag or lift up to ' + d.cap.push + ' lb. 50 coins weigh 1 lb.</p></div>';
+        '<p class="note" style="margin:0">' + (d.enc === 'ok' ? 'Unencumbered.' : d.enc === 'enc' ? 'Encumbered: speed \u221210 ft.' : d.enc === 'heavy' ? 'Heavily encumbered: speed \u221220 ft, disadvantage on STR/DEX/CON rolls.' : 'Over maximum load.') + ' Push, drag or lift up to ' + d.cap.push + ' lb. 50 coins weigh 1 lb.</p></div>';
       h += '<div class="card"><div class="card-h"><h3>Armor</h3></div><div class="frow"><div class="grow"><select class="input" data-f="armor">' + Object.keys(D.ARMOR).map(function (k) {
         var a = D.ARMOR[k];
         return '<option value="' + k + '"' + (C.armor === k ? ' selected' : '') + '>' + a.n + (a.type !== 'none' ? ' (' + a.type + ', AC ' + a.base + ')' : '') + '</option>';
@@ -698,7 +706,7 @@
       lv.forEach(function (L) {
         var items = v.filter(function (x) { return x.lvl === L[0]; });
         if (!items.length) return;
-        h += '<div class="sec-title">' + L[1] + ' · ' + items.length + '</div><div class="card">';
+        h += '<div class="sec-title">' + L[1] + ' \xb7 ' + items.length + '</div><div class="card">';
         items.forEach(function (x) {
           h += '<div class="vi lv-' + x.lvl + '"><span class="dot">' + ic(L[2]) + '</span><div><span class="area">' + esc(x.area) + '</span><b>' + esc(x.t) + '</b>' + (x.x ? '<p>' + esc(x.x) + '</p>' : '') + '</div></div>';
         });
@@ -706,15 +714,15 @@
       });
       if (C.id === 'zaphyre') {
         var au = R.audit(C, d), mism = au.filter(function (a) { return !a.ok; }).length;
-        h += '<div class="sec-title">Sheet audit · ' + (au.length - mism) + ' of ' + au.length + ' match</div><div class="card"><p class="note" style="margin:0 0 10px">Numbers written on the PDF compared with the app’s calculation.</p><table class="audit"><thead><tr><th>Value</th><th>Sheet</th><th>Rules</th><th></th></tr></thead><tbody>' +
-          au.map(function (a) { return '<tr><td>' + esc(a.label) + (a.note && !a.ok ? '<small>' + esc(a.note) + '</small>' : '') + '</td><td>' + esc(a.rec) + '</td><td>' + esc(a.comp) + '</td><td class="' + (a.ok ? 'ok' : 'no') + '">' + (a.ok ? '✓' : '≠') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+        h += '<div class="sec-title">Sheet audit \xb7 ' + (au.length - mism) + ' of ' + au.length + ' match</div><div class="card"><p class="note" style="margin:0 0 10px">Numbers written on the PDF compared with the app\u2019s calculation.</p><table class="audit"><thead><tr><th>Value</th><th>Sheet</th><th>Rules</th><th></th></tr></thead><tbody>' +
+          au.map(function (a) { return '<tr><td>' + esc(a.label) + (a.note && !a.ok ? '<small>' + esc(a.note) + '</small>' : '') + '</td><td>' + esc(a.rec) + '</td><td>' + esc(a.comp) + '</td><td class="' + (a.ok ? 'ok' : 'no') + '">' + (a.ok ? '\u2713' : '\u2260') + '</td></tr>'; }).join('') + '</tbody></table></div>';
       }
       return h;
     },
     notes: function () {
       var f = [['traits', 'Personality traits'], ['ideals', 'Ideals'], ['bonds', 'Bonds'], ['flaws', 'Flaws'], ['backstory', 'Backstory'], ['other', 'Session notes']];
       return '<div class="card">' + f.map(function (x) {
-        return '<div class="field"><label>' + x[1] + '</label><textarea class="input" data-t="notes.' + x[0] + '" placeholder="Write here…">' + esc(C.notes[x[0]]) + '</textarea></div>';
+        return '<div class="field"><label>' + x[1] + '</label><textarea class="input" data-t="notes.' + x[0] + '" placeholder="Write here\u2026">' + esc(C.notes[x[0]]) + '</textarea></div>';
       }).join('') + '<p class="note">Saved automatically.</p></div>';
     },
     dice: function () {
@@ -729,7 +737,7 @@
       h += '<div class="card log"><div class="card-h"><h3>History</h3>' + (LOG.length ? '<button class="link" data-a="clearlog">Clear</button>' : '') + '</div><div class="rows">' +
         (LOG.length ? LOG.slice(0, 40).map(function (l) {
           var tm = new Date(l.t);
-          return '<div class="row"><span class="ic' + (l.nat === 20 ? ' gold' : l.nat === 1 ? ' red' : '') + '">' + ic('die') + '</span><span class="tx"><b>' + esc(l.label) + '</b><small>' + esc((l.dice ? '[' + l.dice.replace(/~(\d+)/g, '($1)') + '] ' : '') + (l.sub ? l.sub + ' · ' : '') + tm.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</small></span><span class="val">' + l.total + '</span></div>';
+          return '<div class="row"><span class="ic' + (l.nat === 20 ? ' gold' : l.nat === 1 ? ' red' : '') + '">' + ic('die') + '</span><span class="tx"><b>' + esc(l.label) + '</b><small>' + esc((l.dice ? '[' + l.dice.replace(/~(\d+)/g, '($1)') + '] ' : '') + (l.sub ? l.sub + ' \xb7 ' : '') + tm.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</small></span><span class="val">' + l.total + '</span></div>';
         }).join('') : '<p class="empty">No rolls yet.</p>') + '</div></div>';
       return h;
     },
@@ -741,16 +749,16 @@
         '<div class="two">' + inp('Player', 'player', C.player) + inp('Campaign', 'campaign', C.campaign) + '</div>' +
         '<div class="two">' + inp('Dungeon Master', 'dm', C.dm) + inp('Base speed (ft)', 'speed', C.speed, ' inputmode="numeric" data-num') + '</div></div>';
       h += '<div class="card"><div class="card-h"><h3>Ability scores</h3></div>' + D.ABILITIES.map(function (a) {
-        return '<div class="frow"><div class="grow"><b>' + a.n + '</b><small>Bonus ' + sign(d.mod[a.k]) + (C.saveProf.indexOf(a.k) >= 0 ? ' · save proficiency' : '') + '</small></div><div class="stepper"><button data-a="abil" data-k="' + a.k + '" data-d="-1">−</button><output>' + C.abilities[a.k] + '</output><button data-a="abil" data-k="' + a.k + '" data-d="1">+</button></div></div>';
+        return '<div class="frow"><div class="grow"><b>' + a.n + '</b><small>Bonus ' + sign(d.mod[a.k]) + (C.saveProf.indexOf(a.k) >= 0 ? ' \xb7 save proficiency' : '') + '</small></div><div class="stepper"><button data-a="abil" data-k="' + a.k + '" data-d="-1">\u2212</button><output>' + C.abilities[a.k] + '</output><button data-a="abil" data-k="' + a.k + '" data-d="1">+</button></div></div>';
       }).join('') + '</div>';
       h += '<div class="card"><div class="card-h"><h3>Classes</h3></div>' + C.classes.map(function (k, i) {
         var cl = D.CLASSES[k.id];
         var subs = Object.keys(cl.subs);
         var canSub = k.level >= cl.subAt;
-        return '<div class="frow"><div class="grow"><b>' + cl.n + (cl.race ? ' <span class="tag tfl">RACE-CLASS</span>' : '') + '</b><small>' + esc(cl.tagline) + ' · d' + cl.hd + '</small></div><div class="stepper"><button data-a="clvl" data-i="' + i + '" data-d="-1">−</button><output>' + k.level + '</output><button data-a="clvl" data-i="' + i + '" data-d="1">+</button></div></div>' +
-          '<div class="field" style="margin-top:2px"><label>' + cl.subLabel + (canSub ? '' : ' (from level ' + cl.subAt + ')') + '</label><select class="input" data-f="classes.' + i + '.sub"' + (canSub || k.sub ? '' : ' disabled') + '><option value="">— None —</option>' + subs.map(function (s) { return '<option value="' + s + '"' + (k.sub === s ? ' selected' : '') + '>' + cl.subs[s].n + '</option>'; }).join('') + '</select></div>';
-      }).join('') + '<p class="note">Rules data covers Tiefling and Cleric (Twilight Domain). Multiclass prerequisites for other compendium classes: ' + Object.keys(D.MC_PREREQ).map(function (k) { return k + ' ' + D.MC_PREREQ[k]; }).join(' · ') + '.</p></div>';
-      h += '<div class="card"><div class="card-h"><h3>Hit points</h3></div><div class="frow"><div class="grow"><b>Maximum HP</b><small>Fixed average ' + d.hpAvg + ' · possible ' + d.hpMin + '–' + d.hpMaxPossible + '</small></div><div class="stepper"><button data-a="hpmax" data-d="-1">−</button><output>' + C.hp.max + '</output><button data-a="hpmax" data-d="1">+</button></div></div>' +
+        return '<div class="frow"><div class="grow"><b>' + cl.n + (cl.race ? ' <span class="tag tfl">RACE-CLASS</span>' : '') + '</b><small>' + esc(cl.tagline) + ' \xb7 d' + cl.hd + '</small></div><div class="stepper"><button data-a="clvl" data-i="' + i + '" data-d="-1">\u2212</button><output>' + k.level + '</output><button data-a="clvl" data-i="' + i + '" data-d="1">+</button></div></div>' +
+          '<div class="field" style="margin-top:2px"><label>' + cl.subLabel + (canSub ? '' : ' (from level ' + cl.subAt + ')') + '</label><select class="input" data-f="classes.' + i + '.sub"' + (canSub || k.sub ? '' : ' disabled') + '><option value="">\u2014 None \u2014</option>' + subs.map(function (s) { return '<option value="' + s + '"' + (k.sub === s ? ' selected' : '') + '>' + cl.subs[s].n + '</option>'; }).join('') + '</select></div>';
+      }).join('') + '<p class="note">Rules data covers Tiefling and Cleric (Twilight Domain). Multiclass prerequisites for other compendium classes: ' + Object.keys(D.MC_PREREQ).map(function (k) { return k + ' ' + D.MC_PREREQ[k]; }).join(' \xb7 ') + '.</p></div>';
+      h += '<div class="card"><div class="card-h"><h3>Hit points</h3></div><div class="frow"><div class="grow"><b>Maximum HP</b><small>Fixed average ' + d.hpAvg + ' \xb7 possible ' + d.hpMin + '\u2013' + d.hpMaxPossible + '</small></div><div class="stepper"><button data-a="hpmax" data-d="-1">\u2212</button><output>' + C.hp.max + '</output><button data-a="hpmax" data-d="1">+</button></div></div>' +
         '<button class="btn block ghost" data-a="hpavg">Use fixed average (' + d.hpAvg + ')</button></div>';
       h += '<div class="card"><div class="card-h"><h3>Save proficiencies</h3></div><div class="chipset">' + D.ABILITIES.map(function (a) {
         return '<button class="chipbtn ' + (C.saveProf.indexOf(a.k) >= 0 ? 'on' : '') + '" data-a="saveprof" data-k="' + a.k + '">' + a.s + '</button>';
@@ -760,7 +768,7 @@
         '<div class="field"><label>Languages</label><input class="input" data-list="languages" value="' + esc(C.languages.join(', ')) + '"></div>' +
         '<div class="field"><label>Eldritch invocations</label><input class="input" data-list="invocations" value="' + esc(C.invocations.join(', ')) + '" placeholder="From Tiefling 2nd level"></div>' +
         '<div class="field"><label>Feats</label><input class="input" data-list="feats" value="' + esc(C.feats.join(', ')) + '"></div>' +
-        '<button class="btn block ghost" data-a="go" data-p="skills">Edit skill proficiencies →</button></div>';
+        '<button class="btn block ghost" data-a="go" data-p="skills">Edit skill proficiencies \u2192</button></div>';
       return h;
     },
     settings: function () {
@@ -768,7 +776,7 @@
         return '<button class="' + (ST.theme === t ? 'on' : '') + '" data-a="theme" data-k="' + t + '">' + t[0].toUpperCase() + t.slice(1) + '</button>';
       }).join('') + '</div></div>';
       h += '<div class="card"><div class="card-h"><h3>Dice</h3></div>' +
-        '<div class="frow"><div class="grow"><b>3D dice</b><small>' + (Dice3D.supported() ? 'Physics toss with three.js' : 'WebGL unavailable — using quick results') + '</small></div><button class="switch ' + (ST.dice3d ? 'on' : '') + '" data-a="set" data-k="dice3d"></button></div>' +
+        '<div class="frow"><div class="grow"><b>3D dice</b><small>' + (Dice3D.supported() ? 'Physics toss with three.js' : 'WebGL unavailable \u2014 using quick results') + '</small></div><button class="switch ' + (ST.dice3d ? 'on' : '') + '" data-a="set" data-k="dice3d"></button></div>' +
         '<div class="frow"><div class="grow"><b>Sound</b><small>Clatter when dice land</small></div><button class="switch ' + (ST.sound ? 'on' : '') + '" data-a="set" data-k="sound"></button></div>' +
         '<div class="frow"><div class="grow"><b>Haptics</b><small>Vibrate on landing and damage</small></div><button class="switch ' + (ST.haptics ? 'on' : '') + '" data-a="set" data-k="haptics"></button></div>' +
         '<div class="flabel" style="margin:10px 0 8px">Colour</div><div class="palette">' + Object.keys(Dice3D.palettes).map(function (k) {
@@ -778,7 +786,7 @@
       h += '<div class="card"><div class="card-h"><h3>Backup</h3></div><div class="two"><button class="btn" data-a="export">' + ic('download') + 'Export</button><button class="btn" data-a="copyjson">' + ic('copy') + 'Copy JSON</button></div>' +
         '<label class="btn block ghost" style="margin-top:8px">' + ic('upload') + 'Import .json<input type="file" accept=".json,application/json,text/plain" data-a-change="import" class="sr"></label>' +
         '<button class="btn block red" style="margin-top:8px" data-a="reset">' + ic('refresh') + 'Reset to Zaphyre (default)</button></div>';
-      h += '<p class="note" style="text-align:center">OSR Companion · OSR 5th Edition (5.5e homebrew) · Class Compendium 1.5<br>Works offline. Data stays on this device.</p>';
+      h += '<p class="note" style="text-align:center">OSR Companion \xb7 D&D 5.5e (2024) rules with OSR homebrew \xb7 Class Compendium 1.5<br>Works offline. Data stays on this device.</p>';
       return h;
     }
   };
@@ -790,44 +798,51 @@
     else if (D.CLASSES[C.classes[0].id].skillList.indexOf(k) >= 0) src.push(D.CLASSES[C.classes[0].id].n);
     else src.push('No valid source');
     if (C.expertise.indexOf(k) >= 0) src.push('Expertise');
-    return src.join(' · ');
+    return src.join(' \xb7 ');
   }
 
   function spellRow(e, idx) {
     var s = e.s, ca = casterFor(e.src);
-    var meta = [s.time, s.range, s.dur].join(' · ');
+    var meta = [s.time, s.range, s.dur].join(' \xb7 ');
     var acts = '';
     if (s.lvl > 0 || e.legacy) acts += '<button class="pill" data-a="cast" data-x="' + idx + '">' + ic('spark') + 'Cast</button>';
     else if (s.conc) acts += '<button class="pill" data-a="concset" data-x="' + idx + '">Concentrate</button>';
     if (s.atk) acts += '<button class="pill" data-a="satk" data-x="' + idx + '">Attack ' + sign(ca.atk) + '</button>';
-    if (s.save) acts += '<span class="pill save">DC ' + ca.dc + ' · ' + esc(saveOf(s.save) ? saveOf(s.save).n : s.save) + '</span>';
-    if (s.dmg) acts += '<button class="pill ' + (s.heal ? 'heal' : s.bonusDie ? 'plain' : 'dmg') + '" data-a="sdmg" data-x="' + idx + '">' + (s.beams ? '1d10 ×' + Dv.cantripDice : spellDamage(s, e.src, s.lvl)) + '</button>';
+    if (s.save) acts += '<span class="pill save">DC ' + ca.dc + ' \xb7 ' + esc(saveOf(s.save) ? saveOf(s.save).n : s.save) + '</span>';
+    if (s.dmg) acts += '<button class="pill ' + (s.heal ? 'heal' : s.bonusDie ? 'plain' : 'dmg') + '" data-a="sdmg" data-x="' + idx + '">' + (s.beams ? '1d10 \xd7' + Dv.cantripDice : spellDamage(s, e.src, s.lvl)) + '</button>';
     if (s.dmgAlt) acts += '<button class="pill dmg" data-a="sdmgalt" data-x="' + idx + '">' + s.dmgAlt.replace(/^1/, Dv.cantripDice) + ' (hurt)</button>';
     if (s.temp) acts += '<span class="pill heal">+' + s.temp + ' temp HP</span>';
     var conc = C.concentration === s.id;
-    return '<details class="x"><summary><span class="ic" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;' + (e.src === 'tiefling' ? 'background:var(--red-soft);color:var(--red)' : 'background:var(--gold-soft);color:var(--gold)') + '">' + ic(s.heal ? 'heart' : s.dmg ? 'spark' : 'book') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(s.n) + (e.free ? ' †' : '') + ' <span class="tag ' + (e.src === 'tiefling' ? 'tfl' : 'clr') + '">' + ca.tag + '</span>' + (s.conc ? ' <span class="tag c">C</span>' : '') + (s.rit ? ' <span class="tag">R</span>' : '') + (conc ? ' <span class="tag free">ACTIVE</span>' : '') + '</b><small class="muted">' + esc(meta + (s.save ? ' · ' + s.save : s.atk ? ' · atk' : '')) + '</small></span>' + ic('chev', 'chev') + '</summary>' +
-      '<div class="body"><p>' + esc(s.sum) + '</p>' + (e.free ? '<p class="muted">† ' + esc(e.free) + (e.legacy ? ' — cast once per long rest without a slot.' : ' — always prepared.') + '</p>' : '') + '<div class="acts">' + acts + '</div></div></details>';
+    return '<details class="x"><summary><span class="ic" style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;' + (e.src === 'tiefling' ? 'background:var(--red-soft);color:var(--red)' : e.src === 'mi' ? 'background:var(--blue-soft);color:var(--blue)' : 'background:var(--gold-soft);color:var(--gold)') + '">' + ic(s.heal ? 'heart' : s.dmg ? 'spark' : 'book') + '</span><span class="tx" style="flex:1;min-width:0"><b>' + esc(s.n) + (e.free ? ' \u2020' : '') + ' <span class="tag ' + (e.src === 'tiefling' ? 'tfl' : e.src === 'mi' ? 'c' : 'clr') + '">' + ca.tag + '</span>' + (s.conc ? ' <span class="tag c">C</span>' : '') + (s.rit ? ' <span class="tag">R</span>' : '') + (conc ? ' <span class="tag free">ACTIVE</span>' : '') + '</b><small class="muted">' + esc(meta + (s.save ? ' \xb7 ' + s.save : s.atk ? ' \xb7 atk' : '')) + '</small></span>' + ic('chev', 'chev') + '</summary>' +
+      '<div class="body"><p>' + esc(s.sum) + '</p>' + (e.free ? '<p class="muted">\u2020 ' + esc(e.free) + (e.legacy ? ' \u2014 cast once per long rest without a slot.' : ' \u2014 always prepared.') + '</p>' : '') + '<div class="acts">' + acts + '</div></div></details>';
   }
 
   function manageSpellsHtml() {
     var d = Dv, h = '';
     function block(title, src, key, filter, limit, note) {
-      var chosen = C.spells[src][key];
+      var chosen = src === 'mi' ? (key === 'spell' ? (C.magicInitiate.spell ? [C.magicInitiate.spell] : []) : C.magicInitiate.cantrips) : C.spells[src][key];
       var opts = D.SPELLS.filter(filter);
       var over = chosen.length > limit;
-      h += '<div class="sec-title" style="margin-top:8px">' + title + ' · <span style="color:' + (over ? 'var(--red)' : chosen.length === limit ? 'var(--green)' : 'var(--amber)') + '">' + chosen.length + ' / ' + limit + '</span></div>' +
+      h += '<div class="sec-title" style="margin-top:8px">' + title + ' \xb7 <span style="color:' + (over ? 'var(--red)' : chosen.length === limit ? 'var(--green)' : 'var(--amber)') + '">' + chosen.length + ' / ' + limit + '</span></div>' +
         '<div class="chipset">' + opts.map(function (s) {
           var on = chosen.indexOf(s.id) >= 0;
           return '<button class="chipbtn ' + (on ? 'on' : '') + '" data-a="spelltoggle" data-src="' + src + '" data-key="' + key + '" data-id="' + s.id + '">' + esc(s.n) + (s.lvl ? '<span class="ct">' + s.lvl + '</span>' : '') + '</button>';
         }).join('') + '</div>' + (note ? '<p class="note">' + note + '</p>' : '');
     }
     if (d.tfl) {
-      block('Tiefling cantrips (warlock list)', 'tiefling', 'cantrips', function (s) { return s.lvl === 0 && s.lists.indexOf('warlock') >= 0; }, d.tflCantrips, 'Thaumaturgy is granted by Infernal Legacy and doesn’t count.');
+      block('Tiefling cantrips (warlock list)', 'tiefling', 'cantrips', function (s) { return s.lvl === 0 && s.lists.indexOf('warlock') >= 0; }, d.tflCantrips, 'Thaumaturgy is granted by Infernal Legacy and doesn\u2019t count.');
       block('Tiefling spells known (warlock list)', 'tiefling', 'known', function (s) { return s.lvl > 0 && s.lvl <= d.pact.lvl && s.lists.indexOf('warlock') >= 0; }, d.tflKnown, 'Up to ' + ord(d.pact.lvl) + ' level. Swap one when you gain a Tiefling level.');
     }
     if (d.clr) {
       block('Cleric cantrips', 'cleric', 'cantrips', function (s) { return s.lvl === 0 && s.lists.indexOf('cleric') >= 0; }, d.clrCantrips);
       block('Cleric prepared', 'cleric', 'prepared', function (s) { return s.lvl > 0 && s.lvl <= d.maxClrSlot && s.lists.indexOf('cleric') >= 0; }, d.clrPrepared, 'WIS ' + sign(d.mod.wis) + ' + Cleric level ' + d.clr + '. Domain spells (' + d.domainSpells.map(function (id) { return D.SPELL[id].n; }).join(', ') + ') are always prepared. Change after a long rest.');
+    }
+    if (d.mi) {
+      h += '<div class="sec-title" style="margin-top:8px">Magic Initiate (Cleric) \xb7 ability</div><div class="seg">' + ['int', 'wis', 'cha'].map(function (k) {
+        return '<button class="' + (C.magicInitiate.ability === k ? 'on' : '') + '" data-a="miability" data-k="' + k + '">' + k.toUpperCase() + ' ' + sign(d.mod[k]) + '</button>';
+      }).join('') + '</div>';
+      block('Magic Initiate cantrips', 'mi', 'cantrips', function (s) { return s.lvl === 0 && s.lists.indexOf('cleric') >= 0; }, 2, 'Origin feat from the 2024 Acolyte background.');
+      block('Magic Initiate level 1 spell', 'mi', 'spell', function (s) { return s.lvl === 1 && s.lists.indexOf('cleric') >= 0; }, 1, 'Always prepared; free once per long rest, or cast with your slots.');
     }
     return h;
   }
@@ -835,8 +850,9 @@
   function featureActions(x) {
     var d = Dv;
     if (x.res === 'bardic') return '<div class="acts"><button class="pill" data-a="bardic">Roll d' + d.bardic.die + '</button><span class="pill plain">' + (d.bardic.uses - (C.used.bardic || 0)) + ' / ' + d.bardic.uses + ' left</span></div>';
-    if (x.res === 'cd' && /Sanctuary/.test(x.n)) return '<div class="acts"><button class="pill" data-a="sanctuary">Use · 1d6+' + d.clr + ' temp HP</button></div>';
+    if (x.res === 'cd' && /Sanctuary/.test(x.n)) return '<div class="acts"><button class="pill" data-a="sanctuary">Use \xb7 1d6+' + d.clr + ' temp HP</button></div>';
     if (x.res === 'cd') return '<div class="acts"><span class="pill plain">' + (d.cd - (C.used.cd || 0)) + ' / ' + d.cd + ' left</span></div>';
+    if (x.res === 'mi') return '<div class="acts"><button class="pill" data-a="mimanage">Choose spells</button></div>';
     if (x.res === 'eyes') return '<div class="acts"><button class="pill" data-a="pipeyes" data-i="0">' + (C.used.eyes ? 'Shared (restore)' : 'Share darkvision') + '</button></div>';
     return '';
   }
@@ -951,7 +967,7 @@
     hpkind: function (el) { sheetCtx.kind = el.dataset.k; refreshSheet(hpSheetHtml(el.dataset.k)); },
     pad: function (el) {
       var k = el.dataset.k;
-      if (k === 'C') pad = ''; else if (k === '⌫') pad = pad.slice(0, -1); else if (pad.length < 4) pad = (pad + k).replace(/^0+/, '');
+      if (k === 'C') pad = ''; else if (k === '\u232b') pad = pad.slice(0, -1); else if (pad.length < 4) pad = (pad + k).replace(/^0+/, '');
       haptic(0);
       refreshSheet(hpSheetHtml(sheetCtx.kind));
     },
@@ -963,17 +979,17 @@
     },
     acu: function (el) {
       var dd = +el.dataset.d;
-      if (dd < 0 && C.acu <= 0) { toast('No Acumen left — recovers on a long rest'); return; }
+      if (dd < 0 && C.acu <= 0) { toast('No Acumen left \u2014 recovers on a long rest'); return; }
       C.acu = Math.max(0, Math.min(Dv.acuMax, C.acu + dd));
       commit();
-      if (dd < 0) toast('Heroic Inspiration spent — ' + C.acu + ' Acumen left');
+      if (dd < 0) toast('Heroic Inspiration spent \u2014 ' + C.acu + ' Acumen left');
     },
     init: function () { testRoll('Initiative', Dv.init, { sub: 'DEX' + (Dv.joat ? ' + Jack of All Trades' : ''), icon: 'sword' }); },
     check: function (el) {
       var k = el.dataset.k, a = abilName(k);
       testRoll(a.n + ' check', Dv.mod[k] + Dv.joat, { sub: Dv.joat ? 'incl. Jack of All Trades' : a.s, icon: 'star' });
     },
-    save: function (el) { var s = saveOf(el.dataset.k); testRoll(s.n + ' save', Dv.saves[s.c], { sub: s.c + ' · ' + s.a.map(function (a) { return abilName(a).s; }).join(' + '), icon: 'shield' }); },
+    save: function (el) { var s = saveOf(el.dataset.k); testRoll(s.n + ' save', Dv.saves[s.c], { sub: s.c + ' \xb7 ' + s.a.map(function (a) { return abilName(a).s; }).join(' + '), icon: 'shield' }); },
     skill: function (el) { var s = skillOf(el.dataset.k); testRoll(s.n, Dv.skills[s.k], { sub: abilName(s.a).s, icon: 'star' }); },
     skilledit: function () { skillEdit = !skillEdit; render(); },
     skillcycle: function (el) {
@@ -985,11 +1001,11 @@
     },
     watk: function (el) {
       var w = Dv.weapons[+el.dataset.i];
-      testRoll(w.name + ' · attack', w.hit, { icon: 'sword', next: { label: w.name + ' · damage', type: 'dmg', expr: w.die + (w.dmgMod ? (w.dmgMod > 0 ? '+' : '') + w.dmgMod : ''), sub: w.type, icon: 'sword' } });
+      testRoll(w.name + ' \xb7 attack', w.hit, { icon: 'sword', next: { label: w.name + ' \xb7 damage', type: 'dmg', expr: w.die + (w.dmgMod ? (w.dmgMod > 0 ? '+' : '') + w.dmgMod : ''), sub: w.type, icon: 'sword' } });
     },
     wdmg: function (el) {
       var w = Dv.weapons[+el.dataset.i];
-      roll({ label: w.name + ' · damage', type: 'dmg', expr: w.die + (w.dmgMod ? (w.dmgMod > 0 ? '+' : '') + w.dmgMod : ''), sub: w.type, icon: 'sword' });
+      roll({ label: w.name + ' \xb7 damage', type: 'dmg', expr: w.die + (w.dmgMod ? (w.dmgMod > 0 ? '+' : '') + w.dmgMod : ''), sub: w.type, icon: 'sword' });
     },
     wqual: function (el) { var w = C.weapons[+el.dataset.i]; w.quality = w.quality === 'C' ? 'M' : w.quality === 'M' ? 'S' : 'C'; commit(); },
     wdel: function (el) { C.weapons.splice(+el.dataset.i, 1); commit(); },
@@ -1007,15 +1023,15 @@
     },
     satk: function (el) {
       var e = entryAt(el.dataset.x), s = e.s, ca = casterFor(e.src);
-      testRoll(s.n + ' · spell attack', ca.atk, { icon: 'spark', next: { label: s.n + ' · damage', type: 'dmg', expr: s.beams ? '1d10' : spellDamage(s, e.src, s.lvl), sub: s.dt, icon: 'spark' }, note: s.beams && Dv.cantripDice > 1 ? 'Roll once per beam (' + Dv.cantripDice + ').' : '' });
+      testRoll(s.n + ' \xb7 spell attack', ca.atk, { icon: 'spark', next: { label: s.n + ' \xb7 damage', type: 'dmg', expr: s.beams ? '1d10' : spellDamage(s, e.src, s.lvl), sub: s.dt, icon: 'spark' }, note: s.beams && Dv.cantripDice > 1 ? 'Roll once per beam (' + Dv.cantripDice + ').' : '' });
     },
     sdmg: function (el) {
       var e = entryAt(el.dataset.x), s = e.s, ca = casterFor(e.src);
-      roll({ label: s.n, sub: s.heal ? 'Healing' : s.bonusDie ? 'Bonus die' : (s.save ? 'DC ' + ca.dc + ' ' + s.save + ' · ' : '') + (s.dt || ''), type: s.heal ? 'heal' : s.bonusDie ? 'free' : 'dmg', expr: s.beams ? '1d10' : spellDamage(s, e.src, s.lvl), icon: s.heal ? 'heart' : 'spark' });
+      roll({ label: s.n, sub: s.heal ? 'Healing' : s.bonusDie ? 'Bonus die' : (s.save ? 'DC ' + ca.dc + ' ' + s.save + ' \xb7 ' : '') + (s.dt || ''), type: s.heal ? 'heal' : s.bonusDie ? 'free' : 'dmg', expr: s.beams ? '1d10' : spellDamage(s, e.src, s.lvl), icon: s.heal ? 'heart' : 'spark' });
     },
     sdmgalt: function (el) {
       var e = entryAt(el.dataset.x), s = e.s, ca = casterFor(e.src);
-      roll({ label: s.n + ' (target hurt)', sub: 'DC ' + ca.dc + ' ' + s.save + ' · ' + s.dt, type: 'dmg', expr: s.dmgAlt.replace(/^1/, Dv.cantripDice), icon: 'spark' });
+      roll({ label: s.n + ' (target hurt)', sub: 'DC ' + ca.dc + ' ' + s.save + ' \xb7 ' + s.dt, type: 'dmg', expr: s.dmgAlt.replace(/^1/, Dv.cantripDice), icon: 'spark' });
     },
     catk: function (el) { var ca = casterFor(el.dataset.k); testRoll(ca.n + ' spell attack', ca.atk, { icon: 'spark' }); },
     cast: function (el) {
@@ -1027,10 +1043,14 @@
     castwith: function (el) { castSpell(entryAt(el.dataset.x), el.dataset.k); },
     concset: function (el) { var e = entryAt(el.dataset.x); C.concentration = e.s.id; commit(); toast('Concentrating on ' + e.s.n); },
     concend: function () { C.concentration = ''; commit(); toast('Concentration ended'); },
+    unarmed: function () { testRoll('Unarmed strike', Dv.unarmed.hit, { icon: 'star', note: 'Hit: ' + Dv.unarmed.dmg + ' bludgeoning, or impose Grapple/Shove (DC ' + Dv.unarmed.dc + ').' }); },
     concroll: function () { testRoll('Concentration (CON)', Dv.mod.con, { sub: 'DC 10 or half damage', icon: 'eye' }); },
+    mimanage: function () { spellManage = true; go('spells'); },
     spellmanage: function () { spellManage = !spellManage; render(); },
+    miability: function (el) { C.magicInitiate.ability = el.dataset.k; commit(); },
     spelltoggle: function (el) {
-      var arr = C.spells[el.dataset.src][el.dataset.key], id = el.dataset.id, i = arr.indexOf(id);
+      if (el.dataset.src === 'mi' && el.dataset.key === 'spell') { C.magicInitiate.spell = C.magicInitiate.spell === el.dataset.id ? '' : el.dataset.id; commit(); return; }
+      var arr = el.dataset.src === 'mi' ? C.magicInitiate.cantrips : C.spells[el.dataset.src][el.dataset.key], id = el.dataset.id, i = arr.indexOf(id);
       if (i >= 0) arr.splice(i, 1); else arr.push(id);
       commit();
     },
@@ -1048,7 +1068,7 @@
       roll({ label: 'Bardic Inspiration', sub: (b.uses - C.used.bardic) + ' uses left', type: 'free', expr: '1d' + b.die, icon: 'music' });
     },
     sanctuary: function () {
-      if ((C.used.cd || 0) >= Dv.cd) { toast('Channel Divinity used — recovers on a short rest'); return; }
+      if ((C.used.cd || 0) >= Dv.cd) { toast('Channel Divinity used \u2014 recovers on a short rest'); return; }
       C.used.cd = (C.used.cd || 0) + 1;
       save();
       roll({ label: 'Twilight Sanctuary', sub: 'Temp HP for a creature ending its turn in the sphere', type: 'temp', expr: '1d6+' + Dv.clr, icon: 'moon' });
@@ -1079,10 +1099,10 @@
     deathroll: function () {
       roll({ label: 'Death save', type: 'test', mod: 0, adv: '', noHeroic: true, icon: 'skull', onResult: function (t, info) {
         var n = info.natural;
-        if (n === 20) { C.death = { s: 0, f: 0 }; C.hp.cur = 1; toast('Natural 20 — back on your feet with 1 HP!'); }
-        else if (n === 1) { C.death.f = Math.min(3, C.death.f + 2); toast('Natural 1 — two failures'); }
+        if (n === 20) { C.death = { s: 0, f: 0 }; C.hp.cur = 1; toast('Natural 20 \u2014 back on your feet with 1 HP!'); }
+        else if (n === 1) { C.death.f = Math.min(3, C.death.f + 2); toast('Natural 1 \u2014 two failures'); }
         else if (t >= 10) { C.death.s = Math.min(3, C.death.s + 1); if (C.death.s === 3) toast('Stable!'); }
-        else { C.death.f = Math.min(3, C.death.f + 1); if (C.death.f === 3) toast('Three failures…'); }
+        else { C.death.f = Math.min(3, C.death.f + 1); if (C.death.f === 3) toast('Three failures\u2026'); }
         save();
       } });
     },
@@ -1133,7 +1153,7 @@
     export: function () {
       var text = JSON.stringify(C, null, 2), fn = (C.name || 'character').replace(/[^\w-]+/g, '_') + '.json';
       if (window.osrHost && window.osrHost.saveFile) {
-        window.osrHost.saveFile(fn, text).then(function () { toast('Saved ' + fn); }, function (e) { if (e && e.code !== 'declined') toast('Couldn’t save'); });
+        window.osrHost.saveFile(fn, text).then(function () { toast('Saved ' + fn); }, function (e) { if (e && e.code !== 'declined') toast('Couldn\u2019t save'); });
         return;
       }
       var a = document.createElement('a');
@@ -1179,7 +1199,7 @@
           C = normalize(obj);
           commit();
           toast('Imported ' + (C.name || 'character'));
-        } catch (err) { toast('That file isn’t a character export'); }
+        } catch (err) { toast('That file isn\u2019t a character export'); }
       };
       rd.readAsText(f);
       return;
